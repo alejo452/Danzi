@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareSpeech, digitsToHanzi } from '../src/lib/compare';
+import { compareSpeech, digitsToHanzi, isErhua } from '../src/lib/compare';
 import { eligibleForTones, toneOptions } from '../src/lib/tones';
 import type { Word } from '../src/data/levels';
 
@@ -15,6 +15,13 @@ describe('comparar pronunciación', () => {
   it('entiende cifras en lugar de caracteres', () => {
     expect(digitsToHanzi('8点10分')).toBe('八点十分');
     expect(compareSpeech('我八点去学校。', '我8点去学校').score).toBe(1);
+  });
+
+  it('une el erhua (聊天儿) pero no el 儿 de 儿子', () => {
+    expect(isErhua('天', '儿', '')).toBe(true);
+    expect(isErhua('天', '儿', '子')).toBe(false);
+    expect(compareSpeech('我们聊天儿吧。', '我们聊天儿吧').parts.map((x) => x.ch)).toContain('天儿');
+    expect(compareSpeech('今天儿子回来了。', '今天儿子回来了').parts.map((x) => x.ch)).toEqual(['今', '天', '儿', '子', '回', '来', '了', '。']);
   });
 
   it('marca lo que faltó', () => {

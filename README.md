@@ -6,9 +6,10 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
 - **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado. Los trazos se descargan al instalar la app, así que también funciona sin internet.
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.
 - **Palabras**: buscador por chino, pinyin o español.
+- **Recordatorio diario**: a la hora que elijas, una notificación con tu racha y las tarjetas pendientes. Hay que configurarlo una vez (ver abajo).
 - Progreso guardado en el dispositivo, con opción de descargarlo y cargarlo en otro.
 
-Hoy incluye el **HSK 1 (300 palabras) y el HSK 2 (200 palabras)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
+Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200) y el HSK 3 (500)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
 
 ## Uso
 
@@ -25,6 +26,24 @@ Abre la dirección de GitHub Pages en Chrome (Android) o Safari (iPhone):
 
 - **Android:** menú › **Instalar app**.
 - **iPhone:** Compartir › **Agregar a pantalla de inicio**.
+
+### Activar el recordatorio diario
+
+Una app web publicada en GitHub Pages no puede programar notificaciones sola. Por eso el aviso lo envía un workflow de GitHub Actions (`.github/workflows/recordatorios.yml`), que corre cada hora y le avisa a cada dispositivo a la hora que eligió. Se configura una vez por dispositivo:
+
+1. En el celular, abre Danzi y entra a **Ajustes › Recordatorio diario**. Elige la hora, toca **Activar recordatorio** y permite las notificaciones.
+   - **iPhone:** primero agrega Danzi a la pantalla de inicio y ábrela desde ese ícono (iOS 16.4 o más reciente).
+2. Toca **Copiar código**.
+3. En el repositorio de GitHub, entra a **Settings › Secrets and variables › Actions › New repository secret**. En **Name** escribe `DANZI_RECORDATORIO` (para otro dispositivo, `DANZI_RECORDATORIO_2`, etc.), pega el código en **Secret** y guarda.
+4. Para probar, entra a **Actions › Recordatorios diarios › Run workflow**. En un par de minutos llega un aviso de prueba.
+
+Si cambias la hora en la app, el código cambia: reemplaza el secreto con el código nuevo.
+
+Ten en cuenta:
+
+- El workflow solo corre desde `main`.
+- GitHub puede retrasar unos minutos las ejecuciones programadas.
+- En repositorios públicos, GitHub pausa los workflows programados si el repositorio pasa 60 días sin cambios. Te avisa por correo, y se reactivan en **Actions › Recordatorios diarios › Enable workflow**.
 
 ## Publicación
 

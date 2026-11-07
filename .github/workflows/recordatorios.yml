@@ -1,6 +1,8 @@
 name: Recordatorios diarios
 
-# Envía el recordatorio diario a los dispositivos registrados en los secretos DANZI_RECORDATORIO*.
+# Envía el recordatorio diario a los dispositivos registrados en los secretos DANZI_RECORDATORIO,
+# DANZI_RECORDATORIO_2 y DANZI_RECORDATORIO_3 (uno por dispositivo). Solo esos tres secretos llegan
+# a los pasos que los usan: nunca se le pasan todos los secretos del repositorio a un script.
 # Cada dispositivo elige su hora en Ajustes › Recordatorio diario; este workflow corre cada hora
 # y solo avisa a quienes les toca. Para probar, ejecútalo a mano desde Actions › Run workflow.
 #
@@ -49,13 +51,17 @@ jobs:
       - id: revisar
         run: node scripts/send-reminders.mjs --check
         env:
-          SECRETS_JSON: ${{ toJSON(secrets) }}
+          DANZI_RECORDATORIO: ${{ secrets.DANZI_RECORDATORIO }}
+          DANZI_RECORDATORIO_2: ${{ secrets.DANZI_RECORDATORIO_2 }}
+          DANZI_RECORDATORIO_3: ${{ secrets.DANZI_RECORDATORIO_3 }}
       - if: steps.revisar.outputs.due == 'true'
         run: npm ci --ignore-scripts
       - if: steps.revisar.outputs.due == 'true'
         run: node scripts/send-reminders.mjs
         env:
-          SECRETS_JSON: ${{ toJSON(secrets) }}
+          DANZI_RECORDATORIO: ${{ secrets.DANZI_RECORDATORIO }}
+          DANZI_RECORDATORIO_2: ${{ secrets.DANZI_RECORDATORIO_2 }}
+          DANZI_RECORDATORIO_3: ${{ secrets.DANZI_RECORDATORIO_3 }}
 
   mantener-activo:
     # Volver a habilitar el workflow reinicia el plazo de 60 días sin actividad.

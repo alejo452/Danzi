@@ -27,7 +27,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
   - `src/lib/reminderCode.ts`: el código que se pega como secreto en GitHub.
   - `src/lib/reminders.ts`: permiso y suscripción push en el dispositivo.
   - `src/components/ReminderPanel.tsx`: la sección de Ajustes.
-  - `scripts/send-reminders.mjs` y `.github/workflows/recordatorios.yml`: el envío, cada hora, a los dispositivos registrados en los secretos `DANZI_RECORDATORIO*`.
+  - `scripts/send-reminders.mjs` y `.github/workflows/recordatorios.yml`: el envío, cada hora, a los dispositivos registrados en los secretos `DANZI_RECORDATORIO`, `DANZI_RECORDATORIO_2` y `DANZI_RECORDATORIO_3`.
 - `src/data/levels.ts`: carga de los niveles. Un nivel está disponible si existe `src/data/hsk/level-<id>.json`. La lista de niveles está en `src/data/levelList.ts`, que no carga datos para que también la pueda usar el service worker.
 - `data-source/hsk-2025-syllabus.json`: temario oficial completo, con 11 000 palabras en filas `[id, nivel, hanzi, pinyin, categoría]`. No editarlo.
 - `scripts/build-strokes.mjs`: copia los trazos de `hanzi-writer-data` solo para los caracteres del vocabulario. El service worker los descarga todos al instalar la app (`globPatterns` en `vite.config.ts`), así que la escritura funciona sin internet.
@@ -44,6 +44,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
    - Que cada carácter tenga datos de trazos en `hanzi-writer-data`, para poder escribirlo.
 3. **No inventes datos del temario.** Si algo no cuadra con el temario, dilo en lugar de corregirlo a mano.
 4. **El recordatorio es de cada dispositivo.** Se guarda en IndexedDB con la clave `reminder`, fuera de `Progress`, para que no pase a otro dispositivo al descargar y cargar el progreso. El código lleva claves privadas: nunca lo imprimas ni lo guardes en el repositorio.
+5. **Los workflows reciben solo los secretos que usan.** Nunca pases `toJSON(secrets)` a un script: GitHub lo marca como posiblemente malicioso y frena el workflow hasta que alguien lo apruebe. Nombra cada secreto (`${{ secrets.DANZI_RECORDATORIO }}`) y dáselo solo al paso que lo necesita. `tests/workflows.test.ts` lo comprueba.
 
 ## Cómo agregar un nivel (por ejemplo, HSK 2)
 

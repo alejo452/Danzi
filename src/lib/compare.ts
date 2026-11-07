@@ -29,20 +29,29 @@ function syllables(text: string): Syl[] {
 }
 
 /**
- * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor, 男孩儿 nánháir).
+ * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor, 男孩儿 nánháir, 聊天儿 liáotiānr).
  * En el resto (儿子, 女儿) 儿 es una sílaba propia.
  */
-export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头', '孩']);
+export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头', '孩', '天']);
+
+/** Si 儿 va seguido de uno de estos, es parte de otra palabra: 今天儿子… es jīntiān érzi, no jīntiānr zi. */
+const NOT_ERHUA_NEXT = new Set(['子', '童']);
+
+/** Decide si 儿 se une como erhua al carácter anterior. `next` es el carácter que sigue a 儿 (o vacío). */
+export function isErhua(prev: string, ch: string, next: string): boolean {
+  return ch === '儿' && ERHUA_BEFORE.has(prev) && !NOT_ERHUA_NEXT.has(next);
+}
 
 /** Une la "r" del erhua: 哪儿 → nar, para que "nǎ ér" y "nǎr" coincidan. */
 function mergeErhua(list: Syl[]): Syl[] {
   const out: Syl[] = [];
-  for (const s of list) {
+  list.forEach((s, i) => {
     const prev = out[out.length - 1];
-    if (s.isZh && s.ch === '儿' && prev?.isZh && ERHUA_BEFORE.has(Array.from(prev.ch).pop()!)) {
+    const next = list[i + 1]?.isZh ? Array.from(list[i + 1].ch)[0] : '';
+    if (s.isZh && prev?.isZh && isErhua(Array.from(prev.ch).pop()!, s.ch, next)) {
       out[out.length - 1] = { ...prev, ch: prev.ch + s.ch, base: prev.base + 'r' };
     } else out.push(s);
-  }
+  });
   return out;
 }
 

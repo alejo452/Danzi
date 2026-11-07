@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pinyin } from 'pinyin-pro';
 import { describe, expect, it } from 'vitest';
-import { ERHUA_BEFORE } from '../src/lib/compare';
+import { isErhua } from '../src/lib/compare';
 
 type Word = { id: number; hanzi: string; pinyin: string; pos: string; es: string; ex: { zh: string; py: string; es: string } };
 type Row = [number, string, string, string, string];
@@ -22,23 +22,27 @@ function letters(s: string): string {
 }
 
 /**
- * Lecturas que pinyin-pro no reconoce y que también son correctas.
- * 地 como partícula se lee de (慢慢地 mànmàn de), pero pinyin-pro siempre da dì.
+ * Lecturas correctas que pinyin-pro no reconoce: siempre da la otra.
+ * - 地 como partícula se lee de (慢慢地 mànmàn de); pinyin-pro da dì.
+ * - 得 como «tener que» se lee děi (我得走了 wǒ děi zǒu le); pinyin-pro da dé.
+ * - 还 como «devolver» se lee huán (还书 huán shū); pinyin-pro da hái.
  */
-const ALSO_READ: Record<string, string[]> = { 地: ['de'] };
+const ALSO_READ: Record<string, string[]> = { 地: ['de'], 得: ['dei'], 还: ['huan'] };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */
 function autoSyllables(zh: string): string[][] {
   const out: string[][] = [];
+  const all = pinyin(zh, { type: 'all' });
   let prev = '';
-  for (const x of pinyin(zh, { type: 'all' })) {
+  for (const [i, x] of all.entries()) {
     if (!x.isZh) {
       prev = '';
       continue;
     }
-    const isErhua = x.origin === '儿' && ERHUA_BEFORE.has(prev);
+    const next = all[i + 1]?.isZh ? all[i + 1].origin : '';
+    const erhua = isErhua(prev, x.origin, next);
     prev = x.origin;
-    if (isErhua && out.length) {
+    if (erhua && out.length) {
       out[out.length - 1] = out[out.length - 1].map((s) => s + 'r');
       continue;
     }

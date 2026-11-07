@@ -68,4 +68,4 @@ jobs:
       - run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/recordatorios.yml/enable"
         env:
           GH_TOKEN: ${{ github.token }}
-      - run: echo "Listo: el workflow «Recordatorios diarios» quedó habilitado de nuevo."
+      - run: echo "Listo, el workflow «Recordatorios diarios» quedó habilitado de nuevo."

@@ -138,7 +138,7 @@ export function ReminderPanel() {
     run(async () => {
       try {
         const reg = await swReady();
-        const { title, options } = reminderNotification(reminderMessage(getProgress(), new Date()), reg.scope);
+        const { title, options } = reminderNotification(reminderMessage(getProgress(), new Date()), reg.scope, 'local');
         await reg.showNotification(title, options);
         setMessage('Así se ve el recordatorio. El aviso diario te lo manda GitHub a la hora que elegiste.');
       } catch {

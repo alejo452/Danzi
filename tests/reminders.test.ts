@@ -9,7 +9,7 @@ import { levelOfId } from '../src/data/levelList';
 import { addDays } from '../src/lib/dates';
 import { freshProgress, type Progress } from '../src/lib/progress';
 import { bytesToBase64Url, decodeReminderCode, encodeReminderCode, type ReminderCode } from '../src/lib/reminderCode';
-import { reminderMessage } from '../src/lib/reminderMessage';
+import { reminderMessage, reminderNotification } from '../src/lib/reminderMessage';
 import type { StoredCard } from '../src/lib/srs';
 
 describe('niveles por id', () => {
@@ -86,6 +86,31 @@ describe('texto del recordatorio', () => {
       p.log[day(-2)] = { w: 1 };
     });
     expect(reminderMessage(p, NOW)).toEqual({ title: '¡Llevas 3 días seguidos!', body: 'Ya practicaste hoy. Nos vemos mañana.', studiedToday: true });
+  });
+});
+
+describe('notificación', () => {
+  const scope = 'https://alejo452.github.io/Danzi/';
+  const pending = { title: 'Es hora de practicar chino', body: 'Te esperan 10 palabras nuevas.', studiedToday: false };
+
+  it('suena aunque el aviso de ayer siga en la barra', () => {
+    const { options } = reminderNotification(pending, scope) as { options: NotificationOptions & { renotify?: boolean } };
+    expect(options.tag).toBe('danzi-recordatorio');
+    expect(options.renotify).toBe(true);
+    expect(options.silent).toBe(false);
+    expect(options.icon).toBe('https://alejo452.github.io/Danzi/icon-192.png');
+    expect(options.data).toEqual({ url: 'https://alejo452.github.io/Danzi/#repasar' });
+  });
+
+  it('llega sin sonido si ya practicaste hoy', () => {
+    const { options } = reminderNotification({ ...pending, studiedToday: true }, scope) as { options: NotificationOptions & { renotify?: boolean } };
+    expect(options.silent).toBe(true);
+    expect(options.renotify).toBe(false);
+  });
+
+  it('separa las pruebas del aviso diario, para que una no reemplace a la otra en silencio', () => {
+    const tags = (['diario', 'prueba', 'local'] as const).map((k) => reminderNotification(pending, scope, k).options.tag);
+    expect(new Set(tags).size).toBe(3);
   });
 });
 

@@ -29,10 +29,10 @@ function syllables(text: string): Syl[] {
 }
 
 /**
- * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor).
+ * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor, 男孩儿 nánháir).
  * En el resto (儿子, 女儿) 儿 es una sílaba propia.
  */
-export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头']);
+export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头', '孩']);
 
 /** Une la "r" del erhua: 哪儿 → nar, para que "nǎ ér" y "nǎr" coincidan. */
 function mergeErhua(list: Syl[]): Syl[] {

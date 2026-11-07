@@ -1,12 +1,49 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconBack } from '../components/Icons';
 import { isReady, LEVELS } from '../data/levels';
 import { dayKey } from '../lib/dates';
 import { freshProgress, normalizeProgress, type Progress, type Settings as S } from '../lib/progress';
+import { charsToWrite, countSavedStrokes } from '../lib/strokes';
 import { replaceProgress, updateProgress } from '../lib/useProgress';
+import type { WordsState } from '../lib/useWords';
 import type { View } from '../App';
 
-export function Settings({ p, go }: { p: Progress; go: (v: View) => void }) {
+/** Revisa si los trazos de los niveles activos ya están guardados para escribir sin internet. */
+function useSavedStrokes(words: WordsState) {
+  const chars = useMemo(() => charsToWrite(words.words), [words.words]);
+  // undefined: revisando; null: el navegador no guarda archivos para usar sin internet.
+  const [saved, setSaved] = useState<number | null | undefined>(undefined);
+  const [round, setRound] = useState(0);
+  const recheck = () => setRound((n) => n + 1);
+
+  useEffect(() => {
+    if (words.loading) return;
+    let alive = true;
+    setSaved(undefined);
+    countSavedStrokes(chars).then((n) => alive && setSaved(n));
+    return () => {
+      alive = false;
+    };
+  }, [chars, words.loading, round]);
+
+  // Vuelve a revisar cuando el service worker termina de instalarse o se actualiza.
+  useEffect(() => {
+    const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined;
+    if (!sw) return;
+    let alive = true;
+    sw.ready.then(() => alive && recheck());
+    sw.addEventListener('controllerchange', recheck);
+    return () => {
+      alive = false;
+      sw.removeEventListener('controllerchange', recheck);
+    };
+  }, []);
+
+  return { total: chars.length, saved, recheck };
+}
+
+export function Settings({ p, words, go }: { p: Progress; words: WordsState; go: (v: View) => void }) {
+  const offline = useSavedStrokes(words);
   const [confirmReset, setConfirmReset] = useState(false);
   const [pendingImport, setPendingImport] = useState<Progress | null>(null);
   const [message, setMessage] = useState('');
@@ -94,6 +131,24 @@ export function Settings({ p, go }: { p: Progress; go: (v: View) => void }) {
           <input type="checkbox" id="opt-py" checked={p.settings.pinyinFront} onChange={(e) => set({ pinyinFront: e.target.checked })} />
         </label>
       </section>
+
+      {offline.saved !== null && (
+        <section className="panel">
+          <h2 className="label">Escritura sin internet</h2>
+          {offline.saved === undefined ? (
+            <p className="note" role="status">Revisando los trazos guardados…</p>
+          ) : offline.saved >= offline.total ? (
+            <p className="note" role="status">Lista. Los trazos de los {offline.total} caracteres de tus niveles están guardados en este dispositivo.</p>
+          ) : (
+            <>
+              <p className="note" role="status">
+                Faltan los trazos de {offline.total - offline.saved} de {offline.total} caracteres. Abre la app con internet y espera un momento a que se descarguen.
+              </p>
+              <button type="button" className="btn-line" onClick={offline.recheck}>Revisar otra vez</button>
+            </>
+          )}
+        </section>
+      )}
 
       <section className="panel">
         <h2 className="label">Tu progreso</h2>

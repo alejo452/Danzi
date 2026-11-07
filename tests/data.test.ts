@@ -1,6 +1,7 @@
 // Valida cada nivel publicado en src/data/hsk/ contra el temario oficial.
 // Un nivel solo puede estar en src/data/hsk/ si pasa todas estas pruebas.
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pinyin } from 'pinyin-pro';
 import { describe, expect, it } from 'vitest';
@@ -12,6 +13,7 @@ type Row = [number, string, string, string, string];
 const syllabus: Row[] = JSON.parse(fs.readFileSync('data-source/hsk-2025-syllabus.json', 'utf8'));
 const byId = new Map(syllabus.map((r) => [r[0], r]));
 const dir = 'src/data/hsk';
+const strokesDir = path.dirname(createRequire(import.meta.url).resolve('hanzi-writer-data'));
 const files = fs.readdirSync(dir).filter((f) => /^level-.+\.json$/.test(f));
 
 /** Letras del pinyin sin tonos ni signos, para comparar sílabas. */
@@ -19,9 +21,15 @@ function letters(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 }
 
-/** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. */
-function autoLetters(zh: string): string {
-  const out: string[] = [];
+/**
+ * Lecturas que pinyin-pro no reconoce y que también son correctas.
+ * 地 como partícula se lee de (慢慢地 mànmàn de), pero pinyin-pro siempre da dì.
+ */
+const ALSO_READ: Record<string, string[]> = { 地: ['de'] };
+
+/** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */
+function autoSyllables(zh: string): string[][] {
+  const out: string[][] = [];
   let prev = '';
   for (const x of pinyin(zh, { type: 'all' })) {
     if (!x.isZh) {
@@ -31,12 +39,17 @@ function autoLetters(zh: string): string {
     const isErhua = x.origin === '儿' && ERHUA_BEFORE.has(prev);
     prev = x.origin;
     if (isErhua && out.length) {
-      out[out.length - 1] += 'r';
+      out[out.length - 1] = out[out.length - 1].map((s) => s + 'r');
       continue;
     }
-    out.push(x.origin === '谁' ? 'shei' : letters(x.pinyin));
+    out.push([x.origin === '谁' ? 'shei' : letters(x.pinyin), ...(ALSO_READ[x.origin] ?? [])]);
   }
-  return out.join('');
+  return out;
+}
+
+/** Patrón con las sílabas esperadas, sin tonos ni espacios: 慢慢地 → ^manman(?:di|de)$. */
+function syllablePattern(zh: string): RegExp {
+  return new RegExp('^' + autoSyllables(zh).map((o) => (o.length > 1 ? `(?:${o.join('|')})` : o[0])).join('') + '$');
 }
 
 describe('temario', () => {
@@ -86,8 +99,14 @@ for (const file of files) {
 
     it('escribe el pinyin del ejemplo con las sílabas correctas', () => {
       for (const w of words) {
-        expect(letters(w.ex.py.replace(/'/g, '')), `pinyin del ejemplo de ${w.hanzi}: ${w.ex.zh}`).toBe(autoLetters(w.ex.zh));
+        expect(letters(w.ex.py.replace(/'/g, '')), `pinyin del ejemplo de ${w.hanzi}: ${w.ex.zh}`).toMatch(syllablePattern(w.ex.zh));
       }
+    });
+
+    it('tiene trazos para escribir cada carácter', () => {
+      for (const w of words)
+        for (const ch of w.hanzi)
+          if (/\p{Script=Han}/u.test(ch)) expect(fs.existsSync(path.join(strokesDir, `${ch}.json`)), `sin trazos para ${ch} (${w.hanzi})`).toBe(true);
     });
   });
 }

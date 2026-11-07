@@ -1,6 +1,8 @@
 // Copia a public/strokes/ los datos de trazos de cada carácter que aparece en el vocabulario.
 // Se ejecuta solo antes de cada build (npm run build). Los archivos se nombran por su código Unicode
 // en hexadecimal (家 → 5bb6.json) para evitar nombres de archivo con caracteres chinos.
+// El service worker descarga todos estos archivos al instalar la app (vite.config.ts), así que
+// la carpeta se vacía antes para no incluir caracteres que ya no están en el vocabulario.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -10,6 +12,7 @@ const dataDir = path.dirname(require.resolve('hanzi-writer-data'));
 const levelsDir = 'src/data/hsk';
 const outDir = 'public/strokes';
 
+fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 
 const chars = new Set();

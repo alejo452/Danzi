@@ -3,12 +3,12 @@
 App para aprender chino mandarín desde el español, siguiendo el temario oficial del **HSK 3.0**. Se instala en el celular desde el navegador y funciona sin internet.
 
 - **Tarjetas** con repaso espaciado (FSRS, el algoritmo de Anki): carácter al frente; pinyin, significado y ejemplo al voltear.
-- **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado.
+- **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado. Los trazos se descargan al instalar la app, así que también funciona sin internet.
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.
 - **Palabras**: buscador por chino, pinyin o español.
 - Progreso guardado en el dispositivo, con opción de descargarlo y cargarlo en otro.
 
-Hoy incluye el **HSK 1 completo (300 palabras)**. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
+Hoy incluye el **HSK 1 (300 palabras) y el HSK 2 (200 palabras)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
 
 ## Uso
 

@@ -10,6 +10,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Service worker propio (src/sw.ts): además de guardar la app para usarla sin internet,
+      // muestra el recordatorio diario.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
@@ -28,17 +33,12 @@ export default defineConfig({
           { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         // Los trazos de todos los caracteres (strokes/*.json) se descargan al instalar la app,
         // para que la escritura funcione sin internet desde el primer día.
         globPatterns: ['**/*.{js,css,html,svg,png}', 'strokes/*.json'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
-            handler: 'CacheFirst',
-            options: { cacheName: 'fonts', expiration: { maxEntries: 60 } },
-          },
-        ],
+        // Un solo archivo clásico, sin módulos: así lo cargan todos los navegadores.
+        rollupFormat: 'iife',
       },
     }),
   ],

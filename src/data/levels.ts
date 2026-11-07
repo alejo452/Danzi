@@ -1,5 +1,6 @@
 // Niveles del HSK 3.0 según el 《HSK考试大纲》 de noviembre de 2025.
 // Un nivel está disponible en la app cuando existe su archivo src/data/hsk/level-<id>.json.
+import { LEVELS } from './levelList';
 
 export type Word = {
   /** Número de la palabra en el temario oficial (1–11000). Es la clave del progreso: nunca cambiarlo. */
@@ -13,17 +14,7 @@ export type Word = {
   ex: { zh: string; py: string; es: string };
 };
 
-export type LevelInfo = { id: string; name: string; words: number };
-
-export const LEVELS: LevelInfo[] = [
-  { id: '1', name: 'HSK 1', words: 300 },
-  { id: '2', name: 'HSK 2', words: 200 },
-  { id: '3', name: 'HSK 3', words: 500 },
-  { id: '4', name: 'HSK 4', words: 1000 },
-  { id: '5', name: 'HSK 5', words: 1600 },
-  { id: '6', name: 'HSK 6', words: 1800 },
-  { id: '7-9', name: 'HSK 7–9', words: 5600 },
-];
+export { LEVELS, levelOfId, type LevelInfo } from './levelList';
 
 const files = import.meta.glob<{ default: Word[] }>('./hsk/level-*.json');
 

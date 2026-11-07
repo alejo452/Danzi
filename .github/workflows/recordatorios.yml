@@ -1,0 +1,46 @@
+name: Recordatorios diarios
+
+# Envía el recordatorio diario a los dispositivos registrados en los secretos DANZI_RECORDATORIO*.
+# Cada dispositivo elige su hora en Ajustes › Recordatorio diario; este workflow corre cada hora
+# y solo avisa a quienes les toca. Para probar, ejecútalo a mano desde Actions › Run workflow.
+
+on:
+  schedule:
+    # Al minuto 7 de cada hora (a las horas en punto GitHub suele retrasar más los workflows).
+    - cron: '7 * * * *'
+  workflow_dispatch:
+    inputs:
+      probar:
+        description: Enviar ya un aviso de prueba a todos los dispositivos
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recordatorios
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROBAR: ${{ github.event_name == 'workflow_dispatch' && inputs.probar }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: revisar
+        run: node scripts/send-reminders.mjs --check
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+      - if: steps.revisar.outputs.due == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.revisar.outputs.due == 'true'
+        run: node scripts/send-reminders.mjs
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}

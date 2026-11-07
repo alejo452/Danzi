@@ -5,7 +5,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 ## Comandos
 
 - `npm run dev`: servidor local.
-- `npm test`: pruebas (datos, repaso espaciado, voz). **Deben pasar antes de cada commit.**
+- `npm test`: pruebas (datos, repaso espaciado, voz, recordatorios). **Deben pasar antes de cada commit.**
 - `npm run check`: revisión de tipos.
 - `npm run build`: build de producción (copia antes los datos de trazos a `public/strokes/`).
 - `npm run data:skeleton -- <nivel>`: crea el borrador de un nivel desde el temario oficial.
@@ -21,7 +21,14 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
 - `src/lib/strokes.ts`: carga los trazos para la escritura y revisa cuáles están guardados en el dispositivo (Ajustes › Escritura sin internet).
-- `src/data/levels.ts`: lista de niveles. Un nivel está disponible si existe `src/data/hsk/level-<id>.json`.
+- `src/sw.ts`: service worker propio (`injectManifest` en `vite.config.ts`). Guarda la app y los trazos para usarla sin internet y muestra el recordatorio diario cuando llega el push.
+- Recordatorio diario:
+  - `src/lib/reminderMessage.ts`: texto del aviso, según la racha y las tarjetas pendientes.
+  - `src/lib/reminderCode.ts`: el código que se pega como secreto en GitHub.
+  - `src/lib/reminders.ts`: permiso y suscripción push en el dispositivo.
+  - `src/components/ReminderPanel.tsx`: la sección de Ajustes.
+  - `scripts/send-reminders.mjs` y `.github/workflows/recordatorios.yml`: el envío, cada hora, a los dispositivos registrados en los secretos `DANZI_RECORDATORIO*`.
+- `src/data/levels.ts`: carga de los niveles. Un nivel está disponible si existe `src/data/hsk/level-<id>.json`. La lista de niveles está en `src/data/levelList.ts`, que no carga datos para que también la pueda usar el service worker.
 - `data-source/hsk-2025-syllabus.json`: temario oficial completo, con 11 000 palabras en filas `[id, nivel, hanzi, pinyin, categoría]`. No editarlo.
 - `scripts/build-strokes.mjs`: copia los trazos de `hanzi-writer-data` solo para los caracteres del vocabulario. El service worker los descarga todos al instalar la app (`globPatterns` en `vite.config.ts`), así que la escritura funciona sin internet.
 
@@ -36,6 +43,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
    - Que el pinyin del ejemplo tenga las mismas sílabas que el texto chino.
    - Que cada carácter tenga datos de trazos en `hanzi-writer-data`, para poder escribirlo.
 3. **No inventes datos del temario.** Si algo no cuadra con el temario, dilo en lugar de corregirlo a mano.
+4. **El recordatorio es de cada dispositivo.** Se guarda en IndexedDB con la clave `reminder`, fuera de `Progress`, para que no pase a otro dispositivo al descargar y cargar el progreso. El código lleva claves privadas: nunca lo imprimas ni lo guardes en el repositorio.
 
 ## Cómo agregar un nivel (por ejemplo, HSK 2)
 
@@ -49,8 +57,8 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
    - **Pinyin del ejemplo:**
      - Lleva marcas de tono y agrupa las sílabas por palabras: `Wǒ xǐhuan hē chá.`
      - Marca los tonos neutros sin tilde (`xièxie`, `péngyou`) y aplica los cambios de 一 y 不 (`yí ge`, `bú shì`).
-     - Escribe el erhua unido (`nǎr`). Si la prueba no lo reconoce, agrega el carácter anterior a `ERHUA_BEFORE` en `src/lib/compare.ts` (así se agregó 孩 para 男孩儿).
-     - La prueba compara con `pinyin-pro`, que lee mal 地 cuando es partícula. Escribe `de` (`mànmàn de`); la prueba lo acepta por `ALSO_READ` en `tests/data.test.ts`. Si encuentras otro caso así, agrégalo ahí en lugar de escribir un pinyin incorrecto.
+     - Escribe el erhua unido (`nǎr`). Si la prueba no lo reconoce, agrega el carácter anterior a `ERHUA_BEFORE` en `src/lib/compare.ts` (así se agregaron 孩 para 男孩儿 y 天 para 聊天儿). 儿 seguido de 子 no cuenta como erhua (今天儿子 es jīntiān érzi).
+     - La prueba compara con `pinyin-pro`, que lee mal algunos caracteres: 地 como partícula (`mànmàn de`), 得 como «tener que» (`děi`) y 还 como «devolver» (`huán`). Escribe la lectura correcta; la prueba la acepta por `ALSO_READ` en `tests/data.test.ts`. Si encuentras otro caso así, agrégalo ahí en lugar de escribir un pinyin incorrecto.
    - **Traducción:** español natural de Colombia, no una traducción palabra por palabra.
 3. Cuando el borrador esté completo, muévelo a `src/data/hsk/level-2.json`, ejecuta `npm test` y corrige lo que marquen las pruebas.
 4. El nivel aparece solo en Ajustes. No hay que tocar código.
@@ -73,8 +81,9 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 
 Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas, hace el build y publica en GitHub Pages. La app vive en `https://<usuario>.github.io/<repo>/`. `BASE_PATH` se define en el workflow.
 
+`.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios. Cómo se configura está en el README.
+
 ## Pendiente (ideas acordadas, en orden)
 
-1. Nivel HSK 3 con significados y ejemplos.
-2. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo.
-3. Estadísticas de retención y tiempo de estudio.
+1. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo. Con la cuenta, el recordatorio también podría registrarse solo, sin pegar el código en GitHub.
+2. Estadísticas de retención y tiempo de estudio.

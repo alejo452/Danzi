@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconBack } from '../components/Icons';
+import { ReminderPanel } from '../components/ReminderPanel';
 import { isReady, LEVELS } from '../data/levels';
 import { dayKey } from '../lib/dates';
 import { freshProgress, normalizeProgress, type Progress, type Settings as S } from '../lib/progress';
@@ -112,6 +113,8 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
           })}
         </fieldset>
       </section>
+
+      <ReminderPanel />
 
       <section className="panel">
         <fieldset>

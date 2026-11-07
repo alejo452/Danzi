@@ -29,14 +29,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        // Los trazos de todos los caracteres (strokes/*.json) se descargan al instalar la app,
+        // para que la escritura funcione sin internet desde el primer día.
+        globPatterns: ['**/*.{js,css,html,svg,png}', 'strokes/*.json'],
         runtimeCaching: [
-          {
-            // Datos de trazos: se descargan al escribir cada carácter y quedan guardados para usar sin internet.
-            urlPattern: ({ url }) => url.pathname.includes('/strokes/'),
-            handler: 'CacheFirst',
-            options: { cacheName: 'strokes', expiration: { maxEntries: 4000 } },
-          },
           {
             urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
             handler: 'CacheFirst',

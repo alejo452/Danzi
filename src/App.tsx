@@ -74,7 +74,7 @@ export default function App() {
         ) : view === 'palabras' ? (
           <Words p={p} words={words} />
         ) : (
-          <Settings p={p} go={go} />
+          <Settings p={p} words={words} go={go} />
         )}
       </main>
       <nav className="tabs" aria-label="Secciones">

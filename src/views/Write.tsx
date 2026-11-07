@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import HanziWriter, { type CharDataLoaderFn, type CharacterJson } from 'hanzi-writer';
+import HanziWriter from 'hanzi-writer';
 import { IconSpeaker } from '../components/Icons';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
@@ -7,19 +7,12 @@ import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canSpeak, speak } from '../lib/speech';
 import { GRADE_LABEL, previewAll, Rating, State, type Grade, type StoredCard } from '../lib/srs';
+import { loadStrokes } from '../lib/strokes';
 import { getProgress, updateProgress } from '../lib/useProgress';
 import { deckFor, newCandidates, type WordsState } from '../lib/useWords';
 import type { View } from '../App';
 
 type Props = { p: Progress; words: WordsState; counts: QueueCounts; go: (v: View) => void };
-
-/** Datos de trazos generados en el build (scripts/build-strokes.mjs). */
-const loadStrokes: CharDataLoaderFn = (ch, onLoad, onError) => {
-  const name = ch.codePointAt(0)!.toString(16);
-  fetch(`${import.meta.env.BASE_URL}strokes/${name}.json`)
-    .then((r) => (r.ok ? (r.json() as Promise<CharacterJson>) : Promise.reject(new Error(`Sin trazos para ${ch}`))))
-    .then(onLoad, onError);
-};
 
 function token(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -144,7 +137,7 @@ export function Write({ p, words, counts, go }: Props) {
         {header}
         <div className="panel done">
           <h2>No se pudieron cargar los trazos</h2>
-          <p>Revisa tu conexión a internet y vuelve a intentarlo.</p>
+          <p>Todavía no están guardados en este dispositivo. Abre la app con internet, espera un momento a que se descarguen y vuelve a intentarlo.</p>
           <div className="btns"><button type="button" className="btn-primary" onClick={() => { setFailed(false); setCurrent(null); }}>Reintentar</button></div>
         </div>
       </section>

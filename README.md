@@ -52,7 +52,7 @@ Ten en cuenta:
 
 - El workflow solo corre desde `main`.
 - GitHub puede retrasar unos minutos las ejecuciones programadas.
-- En repositorios públicos, GitHub pausa los workflows programados si el repositorio pasa 60 días sin cambios. Te avisa por correo, y se reactivan en **Actions › Recordatorios diarios › Enable workflow**.
+- En repositorios públicos, GitHub pausa los workflows programados si el repositorio pasa 60 días sin cambios. Para evitarlo, el mismo workflow se vuelve a habilitar solo cada lunes (trabajo «mantener-activo»). Para comprobarlo a mano, entra a **Actions › Recordatorios diarios › Run workflow**, desmarca «probar» y marca «mantener». Si aun así GitHub lo pausara, te avisa por correo y se reactiva en **Actions › Recordatorios diarios › Enable workflow**.
 
 ## Publicación
 

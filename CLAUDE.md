@@ -91,6 +91,38 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 
 `.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios. Cómo se configura está en el README. Cada lunes, su trabajo `mantener-activo` lo vuelve a habilitar con la API de GitHub, para que GitHub no lo pause tras 60 días sin actividad en el repositorio público.
 
+## Flujo de trabajo
+
+- Trabaja en la rama de la sesión. Al terminar: `npm test`, `npm run check` y `npm run build`, luego commit, push y **abre tú el pull request**. El dueño lo fusiona.
+- Al fusionarse en `main`, la app se publica sola. No hace falta ejecutar «Publicar en GitHub Pages» a mano.
+- Si el pull request de tu rama ya se fusionó, reinicia la rama desde `main` antes de seguir.
+- Si GitHub dice que un workflow «may be malicious», el dueño lo revisa y lo aprueba una vez por cada versión del archivo. Mientras tanto no corre, ni siquiera de forma programada.
+- En el celular, la app se actualiza sola al abrirla con internet. Si se ve la versión anterior, basta con cerrarla del todo y abrirla de nuevo. Nunca recomiendes borrar los datos del navegador: eso borra el progreso.
+- Desde este entorno no se puede abrir la página publicada (la red no llega a `github.io`). Lo que se publicó se ve en el registro del workflow.
+
+## Cómo probar en el navegador
+
+- Chromium y Playwright ya están instalados. Ejecuta `npm run build` y `npx vite preview --port 4173`, y abre `http://localhost:4173/` con `require('playwright')`.
+- Para probar con progreso, guárdalo en IndexedDB (base `keyval-store`, almacén `keyval`, clave `progress`) y recarga:
+
+  ```js
+  await page.evaluate((data) => new Promise((ok) => {
+    const r = indexedDB.open('keyval-store');
+    r.onupgradeneeded = () => r.result.createObjectStore('keyval');
+    r.onsuccess = () => { const tx = r.result.transaction('keyval', 'readwrite'); tx.objectStore('keyval').put(data, 'progress'); tx.oncomplete = ok; };
+  }), progreso);
+  await page.reload();
+  ```
+
+  Un progreso en un formato anterior (por ejemplo, sin `rewards`) sirve para probar la migración en vivo.
+- Revisa a 390 px de ancho, en claro y en oscuro (`colorScheme: 'dark'`) y con `reducedMotion: 'reduce'`.
+- Notificaciones:
+  - Abre el navegador con `chromium.launch({ channel: 'chromium' })`. El Chromium sin interfaz por defecto siempre las bloquea.
+  - `pushManager.subscribe` no funciona aquí, porque no hay conexión con los servidores de Google. Simúlalo en la página con `addInitScript`.
+  - Para simular un aviso de GitHub, envíalo al service worker con CDP (`ServiceWorker.deliverPushMessage`). El `registrationId` sale del evento `ServiceWorker.workerRegistrationUpdated`.
+  - La entrega real a un celular solo se prueba con «Run workflow» en GitHub.
+- En cambios de interfaz, pasa axe (`axe-core`, instalado fuera del proyecto) por las pantallas que cambiaron.
+
 ## Pendiente (ideas acordadas, en orden)
 
 1. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas). Con la cuenta, el recordatorio también podría registrarse solo, sin pegar el código en GitHub.

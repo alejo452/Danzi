@@ -1,0 +1,7 @@
+node_modules
+dist
+dev-dist
+# Se generan en cada build con scripts/build-strokes.mjs
+public/strokes
+*.local
+.DS_Store

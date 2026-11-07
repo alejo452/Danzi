@@ -239,7 +239,7 @@ export function ReminderPanel() {
                 </>
               )}
             </li>
-            <li>En «Name» escribe DANZI_RECORDATORIO. Si ya existe uno de otro dispositivo, usa DANZI_RECORDATORIO_2.</li>
+            <li>En «Name» escribe DANZI_RECORDATORIO. Si ya existe uno de otro dispositivo, usa DANZI_RECORDATORIO_2 o DANZI_RECORDATORIO_3.</li>
             <li>En «Secret» pega el código y toca «Add secret».</li>
             <li>Para probar, entra a Actions › Recordatorios diarios › Run workflow. En un par de minutos te llega un aviso de prueba.</li>
           </ol>

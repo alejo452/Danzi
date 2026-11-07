@@ -5,8 +5,8 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 
-type Step = { run?: string; uses?: string };
-type Job = { 'runs-on'?: string; if?: string; steps?: Step[] };
+type Step = { run?: string; uses?: string; env?: Record<string, string> };
+type Job = { 'runs-on'?: string; if?: string; env?: Record<string, string>; steps?: Step[] };
 type Workflow = { name?: string; on?: { schedule?: { cron: string }[] } & Record<string, unknown>; jobs?: Record<string, Job> };
 
 const dir = '.github/workflows';
@@ -32,6 +32,11 @@ for (const file of files) {
       }
     });
 
+    it('no le pasa todos los secretos a un script', () => {
+      // GitHub marca toJSON(secrets) como posiblemente malicioso y frena el workflow hasta que alguien lo apruebe.
+      expect(text).not.toMatch(/toJSON\(\s*secrets\s*\)/);
+    });
+
     it('solo compara github.event.schedule con horarios que existen', () => {
       const wf = parse(text) as Workflow;
       const crons = new Set((wf.on?.schedule ?? []).map((s) => s.cron));
@@ -43,3 +48,22 @@ for (const file of files) {
     });
   });
 }
+
+describe('workflow recordatorios.yml: secretos', () => {
+  const wf = parse(fs.readFileSync(path.join(dir, 'recordatorios.yml'), 'utf8')) as Workflow;
+  const secretNames = (env?: Record<string, string>) =>
+    Object.values(env ?? {}).flatMap((v) => [...String(v).matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map((m) => m[1]));
+
+  it('solo usa los secretos de los recordatorios', () => {
+    const used = Object.values(wf.jobs ?? {}).flatMap((job) => [...secretNames(job.env), ...(job.steps ?? []).flatMap((st) => secretNames(st.env))]);
+    expect(used.length).toBeGreaterThan(0);
+    for (const name of used) expect(name, `secreto inesperado: ${name}`).toMatch(/^DANZI_RECORDATORIO(_[23])?$/);
+  });
+
+  it('no deja los secretos al alcance de la instalación de paquetes', () => {
+    for (const [id, job] of Object.entries(wf.jobs ?? {})) {
+      expect(secretNames(job.env), `${id}: secretos en el env del trabajo`).toEqual([]);
+      for (const st of job.steps ?? []) if (st.run?.includes('npm ci')) expect(secretNames(st.env), `${id}: secretos en npm ci`).toEqual([]);
+    }
+  });
+});

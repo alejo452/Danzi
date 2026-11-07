@@ -34,7 +34,7 @@ Una app web publicada en GitHub Pages no puede programar notificaciones sola. Po
 1. En el celular, abre Danzi y entra a **Ajustes › Recordatorio diario**. Elige la hora, toca **Activar recordatorio** y permite las notificaciones.
    - **iPhone:** primero agrega Danzi a la pantalla de inicio y ábrela desde ese ícono (iOS 16.4 o más reciente).
 2. Toca **Copiar código**.
-3. En el repositorio de GitHub, entra a **Settings › Secrets and variables › Actions › New repository secret**. En **Name** escribe `DANZI_RECORDATORIO` (para otro dispositivo, `DANZI_RECORDATORIO_2`, etc.), pega el código en **Secret** y guarda.
+3. En el repositorio de GitHub, entra a **Settings › Secrets and variables › Actions › New repository secret**. En **Name** escribe `DANZI_RECORDATORIO` (para otros dispositivos, `DANZI_RECORDATORIO_2` y `DANZI_RECORDATORIO_3`), pega el código en **Secret** y guarda.
 4. Para probar, entra a **Actions › Recordatorios diarios › Run workflow**. En un par de minutos llega un aviso de prueba.
 
 Si cambias la hora en la app, el código cambia: reemplaza el secreto con el código nuevo.

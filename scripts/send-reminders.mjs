@@ -1,8 +1,9 @@
 // Envía el recordatorio diario de Danzi a cada dispositivo registrado.
 //
 // Lo ejecuta .github/workflows/recordatorios.yml cada hora. Los dispositivos se registran
-// pegando su código (Ajustes › Recordatorio diario) en un secreto del repositorio cuyo nombre
-// empiece por DANZI_RECORDATORIO. A cada uno le llega el aviso en la hora que eligió, en su zona horaria.
+// pegando su código (Ajustes › Recordatorio diario) en los secretos DANZI_RECORDATORIO,
+// DANZI_RECORDATORIO_2 o DANZI_RECORDATORIO_3, que el workflow pasa como variables de entorno.
+// A cada uno le llega el aviso en la hora que eligió, en su zona horaria.
 //
 //   node scripts/send-reminders.mjs --check   dice si a alguien le toca ahora (escribe due=true|false para GitHub)
 //   node scripts/send-reminders.mjs           envía a quienes les toca ahora
@@ -45,7 +46,7 @@ export function decodeReminderCode(text) {
   return c;
 }
 
-/** Códigos guardados en los secretos. `secrets` es el objeto de toJSON(secrets) del workflow. */
+/** Códigos guardados en los secretos. `secrets` va de nombre a valor (las variables DANZI_RECORDATORIO*). */
 export function codesFromSecrets(secrets) {
   const out = [];
   for (const [name, value] of Object.entries(secrets ?? {})) {
@@ -126,16 +127,8 @@ function annotate(level, text) {
   console.log(process.env.GITHUB_ACTIONS ? `::${level}::${text}` : `${level}: ${text}`);
 }
 
+/** Los códigos llegan como variables de entorno: DANZI_RECORDATORIO=danzi1.… node scripts/send-reminders.mjs */
 function readSecrets() {
-  if (process.env.SECRETS_JSON) {
-    try {
-      return JSON.parse(process.env.SECRETS_JSON);
-    } catch {
-      annotate('error', 'No se pudieron leer los secretos del workflow.');
-      return {};
-    }
-  }
-  // Uso local: DANZI_RECORDATORIO=danzi1.… node scripts/send-reminders.mjs
   return Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith(SECRET_PREFIX)));
 }
 

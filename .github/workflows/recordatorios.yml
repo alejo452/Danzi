@@ -3,17 +3,27 @@ name: Recordatorios diarios
 # Envía el recordatorio diario a los dispositivos registrados en los secretos DANZI_RECORDATORIO*.
 # Cada dispositivo elige su hora en Ajustes › Recordatorio diario; este workflow corre cada hora
 # y solo avisa a quienes les toca. Para probar, ejecútalo a mano desde Actions › Run workflow.
+#
+# En repositorios públicos, GitHub pausa los workflows programados cuando el repositorio pasa
+# 60 días sin actividad. Para evitarlo, el trabajo «mantener-activo» vuelve a habilitar este
+# workflow cada lunes con la API de GitHub, sin hacer commits.
 
 on:
   schedule:
     # Al minuto 7 de cada hora (a las horas en punto GitHub suele retrasar más los workflows).
     - cron: '7 * * * *'
+    # Los lunes a las 14:23 UTC (9:23 a. m. en Colombia): mantener activo el workflow.
+    - cron: '23 14 * * 1'
   workflow_dispatch:
     inputs:
       probar:
         description: Enviar ya un aviso de prueba a todos los dispositivos
         type: boolean
         default: true
+      mantener:
+        description: Volver a habilitar el workflow para que GitHub no lo pause (se hace solo cada lunes)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,6 +34,8 @@ concurrency:
 
 jobs:
   enviar:
+    # Cada hora, o cuando se ejecuta a mano.
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '7 * * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -44,3 +56,16 @@ jobs:
         run: node scripts/send-reminders.mjs
         env:
           SECRETS_JSON: ${{ toJSON(secrets) }}
+
+  mantener-activo:
+    # Volver a habilitar el workflow reinicia el plazo de 60 días sin actividad.
+    if: github.event.schedule == '23 14 * * 1' || inputs.mantener
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/recordatorios.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: echo "Listo: el workflow «Recordatorios diarios» quedó habilitado de nuevo."

@@ -81,7 +81,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 
 Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas, hace el build y publica en GitHub Pages. La app vive en `https://<usuario>.github.io/<repo>/`. `BASE_PATH` se define en el workflow.
 
-`.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios. Cómo se configura está en el README.
+`.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios. Cómo se configura está en el README. Cada lunes, su trabajo `mantener-activo` lo vuelve a habilitar con la API de GitHub, para que GitHub no lo pause tras 60 días sin actividad en el repositorio público.
 
 ## Pendiente (ideas acordadas, en orden)
 

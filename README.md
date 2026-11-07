@@ -1,4 +1,4 @@
-# Hanzi Diario
+# Danzi
 
 App para aprender chino mandarín desde el español, siguiendo el temario oficial del **HSK 3.0**. Se instala en el celular desde el navegador y funciona sin internet.
 

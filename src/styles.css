@@ -1,4 +1,4 @@
-/* Hanzi Diario — una columna de app móvil (máx. 560px), vistas por pestaña y barra inferior.
+/* Danzi — una columna de app móvil (máx. 560px), vistas por pestaña y barra inferior.
    Todos los colores salen de los tokens de :root, con su versión oscura. */
 :root {
   --bg: #F3F4F6;

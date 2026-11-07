@@ -1,4 +1,4 @@
-# Hanzi Diario — guía para Claude
+# Danzi — guía para Claude
 
 App web instalable (PWA) para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (《HSK考试大纲》, noviembre de 2025). La usa Diego, estudiante colombiano, sobre todo desde el celular. Toda la interfaz está en **español de Colombia, tuteando**.
 

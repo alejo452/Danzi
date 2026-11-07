@@ -23,7 +23,7 @@ export function Settings({ p, go }: { p: Progress; go: (v: View) => void }) {
     const blob = new Blob([JSON.stringify(p, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `hanzi-diario-progreso-${dayKey()}.json`;
+    a.download = `danzi-progreso-${dayKey()}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     setMessage('Archivo de progreso descargado.');
@@ -37,7 +37,7 @@ export function Settings({ p, go }: { p: Progress; go: (v: View) => void }) {
       setPendingImport(normalizeProgress(data));
       setMessage('');
     } catch {
-      setMessage('Ese archivo no es un progreso de Hanzi Diario.');
+      setMessage('Ese archivo no es un progreso de Danzi.');
     }
     if (fileRef.current) fileRef.current.value = '';
   };

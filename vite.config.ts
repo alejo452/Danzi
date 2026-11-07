@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Hanzi Diario',
-        short_name: 'Hanzi Diario',
+        name: 'Danzi',
+        short_name: 'Danzi',
         description: 'Aprende chino con tarjetas, escritura y habla, según el HSK 3.0.',
         lang: 'es',
         start_url: base,

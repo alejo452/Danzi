@@ -7,6 +7,11 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.
 - **Palabras**: buscador por chino, pinyin o español.
 - **Recordatorio diario**: a la hora que elijas, una notificación con tu racha y las tarjetas pendientes. Hay que configurarlo una vez (ver abajo).
+- **Racha y premios**:
+  - Al tocar la racha se abre un calendario del mes.
+  - Practicar da monedas (铜钱), y cumplir la meta diaria abre un sobre rojo (红包).
+  - Hay 20 sellos (印章) para coleccionar.
+  - En la tienda hay protectores de racha y temas de color.
 - Progreso guardado en el dispositivo, con opción de descargarlo y cargarlo en otro.
 
 Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200) y el HSK 3 (500)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
+import { CoinCount } from '../components/CoinCount';
+import { Confetti } from '../components/Confetti';
+import { EnvelopeSheet } from '../components/Envelope';
 import { IconSpeaker } from '../components/Icons';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
 import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
+import { canOpenEnvelope, goalProgress } from '../lib/rewards';
 import { canSpeak, speak } from '../lib/speech';
 import { previewAll, State, type Grade, type StoredCard } from '../lib/srs';
 import { getProgress, replaceProgress, updateProgress } from '../lib/useProgress';
@@ -17,6 +21,9 @@ export function Review({ p, words, counts, go }: Props) {
   const [shown, setShown] = useState(false);
   const [preview, setPreview] = useState<{ at: Date; cards: Record<Grade, StoredCard> } | null>(null);
   const [undo, setUndo] = useState<{ before: Progress; id: string } | null>(null);
+  // Tarjetas respondidas en esta visita: si se termina el repaso aquí, se celebra.
+  const [answered, setAnswered] = useState(0);
+  const [envelope, setEnvelope] = useState(false);
 
   const deck = deckFor(p, 'read', words.byId);
   const candidates = newCandidates(p, 'read', words.words);
@@ -43,6 +50,7 @@ export function Review({ p, words, counts, go }: Props) {
     const before = getProgress();
     updateProgress((q) => recordAnswer(q, 'read', current, preview.cards[g], new Date()));
     setUndo({ before, id: current });
+    setAnswered((n) => n + 1);
     setCurrent(null);
   };
 
@@ -73,7 +81,10 @@ export function Review({ p, words, counts, go }: Props) {
     <>
       <header className="top">
         <h1 id="h-rep">Repaso</h1>
-        <button type="button" className="ghost" disabled={!undo} onClick={doUndo}>Deshacer</button>
+        <div className="top-r">
+          <CoinCount value={p.rewards.coins} />
+          <button type="button" className="ghost" disabled={!undo} onClick={doUndo}>Deshacer</button>
+        </div>
       </header>
       <div className="mini" aria-label="Tarjetas pendientes hoy">
         <span><b className="c-new">{counts.newLeft}</b> nuevas</span>
@@ -86,19 +97,26 @@ export function Review({ p, words, counts, go }: Props) {
   if (words.loading) return <section className="view">{header}</section>;
 
   if (!current) {
-    const tl = todayLog(p, new Date());
-    const parts = [tl.r ? `Hoy hiciste ${plural(tl.r, 'repaso', 'repasos')}.` : 'No tienes tarjetas pendientes ahora.'];
-    const nd = nextDueText(deck, new Date());
+    const now = new Date();
+    const tl = todayLog(p, now);
+    const goal = goalProgress(p, now);
+    const parts = [tl.r ? `Hoy hiciste ${plural(tl.r, 'repaso', 'repasos')} y ganaste ${plural(tl.c, 'moneda', 'monedas')}.` : 'No tienes tarjetas pendientes ahora.'];
+    const nd = nextDueText(deck, now);
     if (nd) parts.push(nd);
     if (!candidates.length) parts.push('Ya viste todas las palabras de los niveles activos.');
+    if (tl.r && !goal.reached) parts.push(`Para la meta del día te ${goal.goal - goal.done === 1 ? 'falta 1 actividad' : `faltan ${goal.goal - goal.done} actividades`}: escribe o habla un rato.`);
     return (
       <section className="view" aria-labelledby="h-rep">
         {header}
         <div className="panel done">
+          {answered > 0 && <Confetti />}
           <span className="hz big" lang="zh-Hans">完成</span>
-          <h2>Listo por hoy</h2>
+          <h2>{answered > 0 ? '¡Terminaste el repaso!' : 'Listo por hoy'}</h2>
           <p>{parts.join(' ')}</p>
           <div className="btns">
+            {canOpenEnvelope(p, now) && (
+              <button type="button" className="btn-primary" onClick={() => setEnvelope(true)}>Abrir sobre rojo</button>
+            )}
             {candidates.length > 0 && (
               <button type="button" className="btn-primary" onClick={() => updateProgress((q) => addExtraNew(q, 'read', 5, new Date()))}>
                 Aprender 5 palabras más
@@ -107,6 +125,7 @@ export function Review({ p, words, counts, go }: Props) {
             <button type="button" className="btn-line" onClick={() => go('escribir')}>Practicar escritura</button>
           </div>
         </div>
+        <EnvelopeSheet open={envelope} onClose={() => setEnvelope(false)} />
       </section>
     );
   }
@@ -120,7 +139,12 @@ export function Review({ p, words, counts, go }: Props) {
     <section className="view" aria-labelledby="h-rep">
       {header}
       <div className="session">
-        <div className={`flash${shown ? '' : ' can-flip'}`} onClick={(e) => !(e.target as HTMLElement).closest('button') && flip()} aria-live="polite">
+        <div
+          key={`${current}-${shown}`}
+          className={`flash${shown ? ' flipped' : ' can-flip enter'}`}
+          onClick={(e) => !(e.target as HTMLElement).closest('button') && flip()}
+          aria-live="polite"
+        >
           <span className={`tag ${tag[1]}`}>{tag[0]}</span>
           <span className={`hz f-hz${len >= 3 ? ' len3' : len === 2 ? ' len2' : ''}`} lang="zh-Hans">{w.hanzi}</span>
           {!shown && p.settings.pinyinFront && <span className="f-pyfront">{w.pinyin}</span>}

@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { Celebrations } from './components/Celebrations';
 import { IconBook, IconCards, IconHome, IconMic, IconPencil } from './components/Icons';
+import { Toasts } from './components/Toasts';
+import { dayKey } from './lib/dates';
 import { newLeftToday } from './lib/progress';
 import { queueCounts } from './lib/queue';
-import { useProgress, useProgressLoaded } from './lib/useProgress';
+import { applyShields, goalProgress } from './lib/rewards';
+import { toast } from './lib/toasts';
+import { updateProgress, useProgress, useProgressLoaded } from './lib/useProgress';
 import { deckFor, newCandidates, useWords } from './lib/useWords';
 import { Home } from './views/Home';
 import { Review } from './views/Review';
+import { Rewards } from './views/Rewards';
 import { Settings } from './views/Settings';
 import { Speak } from './views/Speak';
 import { Words } from './views/Words';
 import { Write } from './views/Write';
 
-export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes'] as const;
+export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes', 'premios'] as const;
 export type View = (typeof VIEWS)[number];
 
 function viewFromHash(): View {
@@ -34,6 +40,39 @@ export default function App() {
   const [view, setView] = useState<View>(viewFromHash);
   const main = useRef<HTMLElement>(null);
   const [, setTick] = useState(0);
+  const [shieldsUsed, setShieldsUsed] = useState(0);
+  const today = dayKey(new Date());
+
+  // Al abrir la app (y cada día nuevo), los protectores cubren los días sin práctica justo antes de hoy.
+  useEffect(() => {
+    if (!loaded) return;
+    let used = 0;
+    updateProgress((q) => {
+      const r = applyShields(q, new Date());
+      used = r.used;
+      return r.used ? r.p : q;
+    });
+    if (used) setShieldsUsed(used);
+  }, [loaded, today]);
+
+  // Tema de color comprado en Premios, también en la barra del navegador.
+  useEffect(() => {
+    document.documentElement.dataset.accent = p.rewards.theme;
+    const bar = getComputedStyle(document.documentElement).getPropertyValue('--bar').trim();
+    if (bar) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bar);
+  }, [p.rewards.theme]);
+
+  // Aviso cuando la meta del día se cumple fuera de Inicio.
+  const reached = goalProgress(p, new Date()).reached;
+  const wasReached = useRef<{ day: string; reached: boolean } | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    const before = wasReached.current;
+    wasReached.current = { day: today, reached };
+    if (before && before.day === today && !before.reached && reached && view !== 'inicio') {
+      toast('¡Cumpliste la meta de hoy! Tu sobre rojo te espera en Inicio.');
+    }
+  }, [loaded, today, reached, view]);
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
@@ -73,6 +112,8 @@ export default function App() {
           <Speak p={p} words={words} />
         ) : view === 'palabras' ? (
           <Words p={p} words={words} />
+        ) : view === 'premios' ? (
+          <Rewards p={p} go={go} />
         ) : (
           <Settings p={p} words={words} go={go} />
         )}
@@ -94,6 +135,10 @@ export default function App() {
           </a>
         ))}
       </nav>
+      <Toasts />
+      {loaded && (
+        <Celebrations p={p} active={view === 'inicio' || view === 'premios'} shieldsUsed={shieldsUsed} onShieldsSeen={() => setShieldsUsed(0)} />
+      )}
     </div>
   );
 }

@@ -7,6 +7,12 @@ export function dayKey(d: Date | number = new Date()): string {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
+/** Fecha local a partir de AAAA-MM-DD (a la medianoche). */
+export function fromDayKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function startOfDay(d: Date | number): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);

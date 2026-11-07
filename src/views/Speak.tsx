@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CoinCount } from '../components/CoinCount';
 import { IconMic, IconSpeaker } from '../components/Icons';
 import type { Word } from '../data/levels';
 import type { Comparison } from '../lib/compare';
@@ -27,7 +28,7 @@ export function Speak({ p, words }: Props) {
 
   return (
     <section className="view" aria-labelledby="h-hab">
-      <header className="top"><h1 id="h-hab">Habla</h1></header>
+      <header className="top"><h1 id="h-hab">Habla</h1><CoinCount value={p.rewards.coins} /></header>
       <div className="seg seg2" role="radiogroup" aria-label="Tipo de práctica">
         {(['tonos', 'repetir'] as Mode[]).map((m) => (
           <label key={m}>

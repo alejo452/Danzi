@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import HanziWriter from 'hanzi-writer';
+import { CoinCount } from '../components/CoinCount';
 import { IconSpeaker } from '../components/Icons';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
@@ -120,7 +121,7 @@ export function Write({ p, words, counts, go }: Props) {
 
   const header = (
     <>
-      <header className="top"><h1 id="h-esc">Escritura</h1></header>
+      <header className="top"><h1 id="h-esc">Escritura</h1><CoinCount value={p.rewards.coins} /></header>
       <div className="mini" aria-label="Caracteres pendientes hoy">
         <span><b className="c-new">{counts.newLeft}</b> nuevos</span>
         <span><b className="c-learn">{counts.learn}</b> aprendiendo</span>

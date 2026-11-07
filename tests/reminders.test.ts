@@ -147,6 +147,27 @@ describe('hora del envío', () => {
   });
 });
 
+describe('errores del envío', () => {
+  const code = { ...SAMPLE, endpoint: 'https://fcm.googleapis.com/fcm/send/cX9_token-privado:APA91bHabcdefghijklmnopqrstuvwxyz0123456789' };
+
+  it('explica que el celular canceló la suscripción, sin mostrar datos privados', () => {
+    const text = script.describePushError(
+      { statusCode: 410, body: `push subscription has unsubscribed or expired. ${code.endpoint} token=APA91bHabcdefghijklmnopqrstuvwxyz0123456789XYZ\n` },
+      code,
+    );
+    expect(text).toContain('fcm.googleapis.com respondió 410: el celular canceló esta suscripción.');
+    expect(text).toContain('«push subscription has unsubscribed or expired. … …»');
+    expect(text).toContain('Activar de nuevo');
+    expect(text).not.toContain('APA91b');
+    expect(text).not.toContain('token-privado');
+  });
+
+  it('distingue una firma rechazada y un fallo de red', () => {
+    expect(script.describePushError({ statusCode: 403, body: 'invalid JWT' }, code)).toContain('rechazó la firma del aviso (403). Respuesta: «invalid JWT».');
+    expect(script.describePushError(new Error('connect ECONNREFUSED'), code)).toBe('no se pudo enviar el aviso (connect ECONNREFUSED). Se intenta otra vez en el próximo envío.');
+  });
+});
+
 describe('envío push', () => {
   it('firma y cifra el aviso para que solo lo lea el dispositivo', async () => {
     // Claves VAPID creadas como en el navegador (src/lib/reminders.ts).

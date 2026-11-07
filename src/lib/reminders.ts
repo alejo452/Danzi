@@ -16,15 +16,43 @@ export type ReminderState = {
   changed?: boolean;
 };
 
+/** Registro del último aviso que llegó desde GitHub. Lo escribe el service worker. */
+export const PUSH_LOG_KEY = 'reminder-log';
+
+export type PushLog = {
+  /** Cuándo llegó el aviso (ms). */
+  at: number;
+  /** 'diario' o 'prueba'. */
+  kind: string;
+  /** Si el celular dejó mostrar la notificación. */
+  shown: boolean;
+  error?: string;
+};
+
 export type ReminderSupport = 'ok' | 'ios-install' | 'unsupported' | 'denied';
 
+export function isIos(): boolean {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** Si Danzi está abierta como app instalada (desde el ícono) y no en una pestaña del navegador. */
+export function isInstalledApp(): boolean {
+  return matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+}
+
 export function reminderSupport(): ReminderSupport {
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const installed = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    return ios && !installed ? 'ios-install' : 'unsupported';
+    return isIos() && !isInstalledApp() ? 'ios-install' : 'unsupported';
   }
   return Notification.permission === 'denied' ? 'denied' : 'ok';
+}
+
+export async function loadPushLog(): Promise<PushLog | undefined> {
+  try {
+    return await get<PushLog>(PUSH_LOG_KEY);
+  } catch {
+    return undefined;
+  }
 }
 
 export async function loadReminder(): Promise<ReminderState | undefined> {
@@ -76,6 +104,7 @@ export async function enableReminder(hour: number): Promise<ReminderState> {
     false,
   );
   await set(REMINDER_KEY, state);
+  await del(PUSH_LOG_KEY);
   return state;
 }
 
@@ -99,6 +128,7 @@ export async function disableReminder(): Promise<void> {
     await (await reg.pushManager.getSubscription())?.unsubscribe();
   } finally {
     await del(REMINDER_KEY);
+    await del(PUSH_LOG_KEY);
   }
 }
 

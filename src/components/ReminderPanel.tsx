@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { addDays, dayKey } from '../lib/dates';
 import { hourLabel } from '../lib/reminderCode';
 import { reminderMessage, reminderNotification } from '../lib/reminderMessage';
 import {
@@ -6,10 +7,14 @@ import {
   checkReminder,
   disableReminder,
   enableReminder,
+  isInstalledApp,
+  isIos,
+  loadPushLog,
   loadReminder,
   markReminderCopied,
   reminderSupport,
   swReady,
+  type PushLog,
   type ReminderState,
 } from '../lib/reminders';
 import { getProgress } from '../lib/useProgress';
@@ -22,6 +27,15 @@ function secretsPage(): string | null {
   const owner = location.hostname.split('.')[0];
   const repo = location.pathname.split('/').filter(Boolean)[0];
   return repo ? `https://github.com/${owner}/${repo}/settings/secrets/actions/new` : null;
+}
+
+/** "hoy a las 4:31 p. m.", "ayer a las…", "el 3 de noviembre a las…". */
+function whenLabel(at: number, now = new Date()): string {
+  const d = new Date(at);
+  const time = new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' }).format(d);
+  if (dayKey(d) === dayKey(now)) return `hoy a las ${time}`;
+  if (dayKey(d) === dayKey(addDays(now, -1))) return `ayer a las ${time}`;
+  return `el ${new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long' }).format(d)} a las ${time}`;
 }
 
 function errorText(e: unknown): string {
@@ -40,8 +54,25 @@ export function ReminderPanel() {
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [log, setLog] = useState<PushLog | undefined>(undefined);
   const codeRef = useRef<HTMLTextAreaElement>(null);
   const githubPage = secretsPage();
+  // En Android, si Danzi está instalada, el permiso de notificaciones es de la app instalada:
+  // activar el recordatorio desde una pestaña del navegador puede no servir.
+  const inBrowserTab = !isInstalledApp() && !isIos();
+
+  // El service worker anota cada aviso que llega. Se vuelve a leer al regresar a la app.
+  useEffect(() => {
+    const refresh = () => loadPushLog().then(setLog);
+    refresh();
+    const onVisible = () => document.visibilityState === 'visible' && refresh();
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = setInterval(refresh, 15_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -73,6 +104,7 @@ export function ReminderPanel() {
       try {
         setState(await enableReminder(hour));
         setMissing(false);
+        setLog(undefined);
         setMessage('Recordatorio activado. Copia el código y pégalo en GitHub para que te lleguen los avisos.');
       } catch (e) {
         setSupport(reminderSupport());
@@ -120,6 +152,7 @@ export function ReminderPanel() {
       await disableReminder().catch(() => undefined);
       setState(null);
       setMissing(false);
+      setLog(undefined);
       setMessage('Recordatorio desactivado. Si pegaste el código en GitHub, borra también ese secreto.');
     });
 
@@ -154,6 +187,7 @@ export function ReminderPanel() {
     body = (
       <>
         <p className="note">Cada día, a la hora que elijas, te llega un aviso con tu racha y las tarjetas que tienes pendientes.</p>
+        {inBrowserTab && <p className="note">Si instalaste Danzi en la pantalla de inicio, activa el recordatorio desde ese ícono y no desde el navegador.</p>}
         {hourSelect('Hora del aviso')}
         <button type="button" className="btn-primary" disabled={busy} onClick={activate}>Activar recordatorio</button>
       </>
@@ -163,7 +197,11 @@ export function ReminderPanel() {
       <>
         {missing ? (
           <>
-            <p className="warn">Este dispositivo ya no tiene activas las notificaciones de Danzi. Actívalas de nuevo y pega el código nuevo en GitHub.</p>
+            <p className="warn">
+              El celular canceló los avisos de Danzi. Suele pasar si sus notificaciones están bloqueadas en los ajustes del celular, o si el recordatorio se activó desde el navegador
+              teniendo la app instalada. Revisa los permisos, toca «Activar de nuevo» y reemplaza el secreto en GitHub con el código nuevo.
+            </p>
+            {inBrowserTab && <p className="note">Si instalaste Danzi en la pantalla de inicio, haz esto desde ese ícono.</p>}
             <button type="button" className="btn-primary" disabled={busy} onClick={activate}>Activar de nuevo</button>
           </>
         ) : (
@@ -171,6 +209,19 @@ export function ReminderPanel() {
           <p>Te avisamos todos los días a las <b>{hourLabel(state.code.hour)}</b></p>
         )}
         {state.changed && !missing && <p className="warn">El código cambió. Cópialo otra vez y reemplaza el secreto en GitHub.</p>}
+        {!missing &&
+          (!log ? (
+            <p className="note">Este dispositivo todavía no ha recibido avisos de GitHub.</p>
+          ) : log.shown ? (
+            <p className="note">
+              Último aviso recibido: {whenLabel(log.at)}
+              {log.kind === 'prueba' ? ' (prueba)' : ''}
+            </p>
+          ) : (
+            <p className="warn">
+              El último aviso llegó {whenLabel(log.at)}, pero el celular no dejó mostrarlo. Revisa en los ajustes del celular que las notificaciones de Danzi y de Chrome estén permitidas.
+            </p>
+          ))}
         <label className="field" htmlFor="rem-code">
           <span>Código para GitHub</span>
           <textarea id="rem-code" ref={codeRef} className="code" readOnly rows={4} value={state.text} onFocus={(e) => e.target.select()} />

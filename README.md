@@ -39,6 +39,15 @@ Una app web publicada en GitHub Pages no puede programar notificaciones sola. Po
 
 Si cambias la hora en la app, el código cambia: reemplaza el secreto con el código nuevo.
 
+Si no llega el aviso:
+
+1. En el celular, abre Danzi desde el ícono de la pantalla de inicio (no desde el navegador) y entra a **Ajustes › Recordatorio diario**.
+2. Toca **Probar notificación**. Si no aparece nada, el celular está bloqueando las notificaciones: permite las de Danzi y las de Chrome en los ajustes del celular.
+3. Lee lo que dice el panel:
+   - «Último aviso recibido…»: el envío desde GitHub funciona.
+   - «Todavía no ha recibido avisos de GitHub»: el aviso no llegó. Revisa el registro de **Actions › Recordatorios diarios**, que dice qué respondió el servicio de avisos.
+   - «El celular canceló los avisos de Danzi»: toca **Activar de nuevo** y reemplaza el secreto con el código nuevo.
+
 Ten en cuenta:
 
 - El workflow solo corre desde `main`.

@@ -85,6 +85,43 @@ export function sendOptions(code) {
   };
 }
 
+function hostOf(endpoint) {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return 'servicio desconocido';
+  }
+}
+
+/**
+ * Explica un error del servicio de avisos (Google, Apple, Mozilla…) sin mostrar datos privados:
+ * se quitan la dirección de la suscripción y cualquier texto largo que parezca una clave.
+ */
+export function describePushError(e, code) {
+  const status = e?.statusCode;
+  const host = hostOf(code.endpoint);
+  const body = (typeof e?.body === 'string' ? e.body : '')
+    .split(code.endpoint)
+    .join('…')
+    .replace(/[A-Za-z0-9_:+/=-]{32,}/g, '…')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+  const detail = body ? ` Respuesta: «${body}».` : '';
+  if (status === 404 || status === 410) {
+    return (
+      `${host} respondió ${status}: el celular canceló esta suscripción.${detail} ` +
+      'Pasa si se bloquearon las notificaciones de Danzi en el celular, si se activó el recordatorio desde el navegador teniendo la app instalada, ' +
+      'o si se desactivó o se volvió a activar en la app. En el celular, abre Danzi › Ajustes › Recordatorio diario, toca «Activar de nuevo» ' +
+      'y reemplaza el secreto con el código nuevo.'
+    );
+  }
+  if (status === 401 || status === 403) {
+    return `${host} rechazó la firma del aviso (${status}).${detail} Copia otra vez el código desde Ajustes › Recordatorio diario y reemplaza el secreto.`;
+  }
+  return `no se pudo enviar el aviso (${status ?? e?.message ?? 'error desconocido'}).${detail} Se intenta otra vez en el próximo envío.`;
+}
+
 function annotate(level, text) {
   console.log(process.env.GITHUB_ACTIONS ? `::${level}::${text}` : `${level}: ${text}`);
 }
@@ -130,16 +167,14 @@ async function main() {
   for (const d of due) {
     const sub = { endpoint: d.code.endpoint, keys: d.code.keys };
     try {
-      await webpush.sendNotification(sub, payload, sendOptions(d.code));
-      console.log(`${d.label}: aviso enviado (${new URL(d.code.endpoint).host}).`);
+      const res = await webpush.sendNotification(sub, payload, sendOptions(d.code));
+      console.log(
+        `${d.label}: ${hostOf(d.code.endpoint)} recibió el aviso (${res?.statusCode ?? 'ok'}). ` +
+          'Debe aparecer en el celular en menos de un minuto. Si no aparece, abre Danzi › Ajustes › Recordatorio diario: ahí dice si el aviso llegó.',
+      );
     } catch (e) {
       failed++;
-      const status = e?.statusCode;
-      if (status === 404 || status === 410) {
-        annotate('error', `${d.label}: el dispositivo ya no recibe avisos (la suscripción venció o se desactivó). En ese dispositivo, activa el recordatorio de nuevo y reemplaza el secreto con el código nuevo.`);
-      } else {
-        annotate('error', `${d.label}: no se pudo enviar el aviso (${status ?? e?.message ?? 'error desconocido'}). Se intenta otra vez mañana.`);
-      }
+      annotate('error', `${d.label}: ${describePushError(e, d.code)}`);
     }
   }
   if (failed) process.exitCode = 1;

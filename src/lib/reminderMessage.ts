@@ -58,20 +58,33 @@ export function reminderMessage(p: Progress, now: Date): ReminderMessage {
   };
 }
 
+/** Qué notificación es. Cada tipo tiene su propia etiqueta para que una no reemplace en silencio a otra. */
+export type ReminderKind = 'diario' | 'prueba' | 'local';
+
+const TAGS: Record<ReminderKind, string> = {
+  diario: 'danzi-recordatorio',
+  prueba: 'danzi-prueba',
+  local: 'danzi-prueba-local',
+};
+
 /** Título y opciones de la notificación. `scope` es la dirección base de la app (la del service worker). */
-export function reminderNotification(m: ReminderMessage, scope: string): { title: string; options: NotificationOptions } {
-  return {
-    title: m.title,
-    options: {
-      body: m.body,
-      lang: 'es',
-      icon: new URL('icon-192.png', scope).href,
-      badge: new URL('badge-96.png', scope).href,
-      // Con la misma etiqueta, un recordatorio nuevo reemplaza al anterior en lugar de acumularse.
-      tag: 'danzi-recordatorio',
-      // Si ya practicaste hoy, el aviso llega sin sonido.
-      silent: m.studiedToday,
-      data: { url: new URL('#repasar', scope).href },
-    },
+export function reminderNotification(
+  m: ReminderMessage,
+  scope: string,
+  kind: ReminderKind = 'diario',
+): { title: string; options: NotificationOptions } {
+  // renotify no está en los tipos de TypeScript, pero Chrome lo usa.
+  const options: NotificationOptions & { renotify?: boolean } = {
+    body: m.body,
+    lang: 'es',
+    icon: new URL('icon-192.png', scope).href,
+    badge: new URL('badge-96.png', scope).href,
+    // Con la misma etiqueta, el aviso de hoy reemplaza al de ayer en lugar de acumularse…
+    tag: TAGS[kind],
+    // …y suena aunque el de ayer siga en la barra. Si ya practicaste hoy, llega sin sonido.
+    renotify: !m.studiedToday,
+    silent: m.studiedToday,
+    data: { url: new URL('#repasar', scope).href },
   };
+  return { title: m.title, options };
 }

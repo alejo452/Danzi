@@ -56,7 +56,7 @@ async function showReminder(data: PushMessageData | null): Promise<void> {
     // Sin datos o con datos que no son JSON: se muestra el recordatorio normal.
   }
   const message = await buildMessage(kind);
-  const { title, options } = reminderNotification(message, self.registration.scope);
+  const { title, options } = reminderNotification(message, self.registration.scope, kind === 'prueba' ? 'prueba' : 'diario');
   const log: PushLog = { at: Date.now(), kind, shown: true };
   try {
     await self.registration.showNotification(title, options);

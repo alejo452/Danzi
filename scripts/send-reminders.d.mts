@@ -13,3 +13,4 @@ export declare function sendOptions(code: ReminderCode): {
   urgency: string;
   topic: string;
 };
+export declare function describePushError(e: unknown, code: ReminderCode): string;

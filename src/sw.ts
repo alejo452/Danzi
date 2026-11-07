@@ -12,7 +12,7 @@ import { CacheFirst } from 'workbox-strategies';
 import { normalizeProgress } from './lib/progress';
 import { base64UrlToBytes, encodeReminderCode } from './lib/reminderCode';
 import { reminderMessage, reminderNotification, type ReminderMessage } from './lib/reminderMessage';
-import { REMINDER_KEY, type ReminderState } from './lib/reminders';
+import { PUSH_LOG_KEY, REMINDER_KEY, type PushLog, type ReminderState } from './lib/reminders';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -36,6 +36,18 @@ const TEST_MESSAGE: ReminderMessage = {
   studiedToday: false,
 };
 
+/** Si algo falla al leer el progreso, el aviso sale igual con este texto. */
+const PLAIN_MESSAGE: ReminderMessage = { title: 'Es hora de practicar chino', body: 'Abre Danzi y repasa un rato.', studiedToday: false };
+
+async function buildMessage(kind: string): Promise<ReminderMessage> {
+  if (kind === 'prueba') return TEST_MESSAGE;
+  try {
+    return reminderMessage(normalizeProgress(await get('progress')), new Date());
+  } catch {
+    return PLAIN_MESSAGE;
+  }
+}
+
 async function showReminder(data: PushMessageData | null): Promise<void> {
   let kind = 'diario';
   try {
@@ -43,13 +55,23 @@ async function showReminder(data: PushMessageData | null): Promise<void> {
   } catch {
     // Sin datos o con datos que no son JSON: se muestra el recordatorio normal.
   }
-  let message = TEST_MESSAGE;
-  if (kind !== 'prueba') {
-    const raw = await get('progress').catch(() => undefined);
-    message = reminderMessage(normalizeProgress(raw), new Date());
-  }
+  const message = await buildMessage(kind);
   const { title, options } = reminderNotification(message, self.registration.scope);
-  await self.registration.showNotification(title, options);
+  const log: PushLog = { at: Date.now(), kind, shown: true };
+  try {
+    await self.registration.showNotification(title, options);
+  } catch (e) {
+    // Segundo intento sin íconos ni opciones, por si alguna no la acepta el celular.
+    log.error = String(e);
+    try {
+      await self.registration.showNotification(title, { body: message.body });
+    } catch (e2) {
+      log.shown = false;
+      log.error += ` / ${String(e2)}`;
+    }
+  }
+  // Ajustes muestra cuándo llegó el último aviso, para saber si el envío llega al celular.
+  await set(PUSH_LOG_KEY, log).catch(() => undefined);
 }
 
 self.addEventListener('push', (event) => {

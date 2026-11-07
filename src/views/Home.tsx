@@ -1,8 +1,15 @@
+import { useState } from 'react';
+import { CoinCount } from '../components/CoinCount';
+import { EnvelopeArt, EnvelopeSheet } from '../components/Envelope';
+import { GoalRing } from '../components/GoalRing';
 import { IconFlame, IconGear, IconMic, IconPencil } from '../components/Icons';
+import { Sheet } from '../components/Sheet';
+import { StreakCalendar } from '../components/StreakCalendar';
 import { LEVELS } from '../data/levels';
-import { plural } from '../lib/dates';
-import { streak, todayLog, type Progress } from '../lib/progress';
+import { dayKey, plural } from '../lib/dates';
+import { practiced, streak, todayLog, type Progress } from '../lib/progress';
 import { forecast, type QueueCounts } from '../lib/queue';
+import { canOpenEnvelope, goalProgress } from '../lib/rewards';
 import { isLearning, isMature } from '../lib/srs';
 import type { WordsState } from '../lib/useWords';
 import { deckFor } from '../lib/useWords';
@@ -14,19 +21,42 @@ const DATE_FMT = new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numer
 const WD_FMT = new Intl.DateTimeFormat('es-CO', { weekday: 'short' });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** Saludo en chino según la hora: 早上好, 下午好 o 晚上好 (todas palabras del HSK 1). */
+function greeting(now: Date): { hz: string; py: string; es: string } {
+  const h = now.getHours();
+  if (h >= 5 && h < 12) return { hz: '早上好', py: 'Zǎoshang hǎo', es: 'Buenos días' };
+  if (h >= 12 && h < 18) return { hz: '下午好', py: 'Xiàwǔ hǎo', es: 'Buenas tardes' };
+  return { hz: '晚上好', py: 'Wǎnshang hǎo', es: 'Buenas noches' };
+}
+
 export function Home({ p, words, read, write, go }: Props) {
+  const [sheet, setSheet] = useState<'racha' | 'sobre' | null>(null);
   const now = new Date();
   const st = streak(p, now);
   const tl = todayLog(p, now);
+  const doneToday = practiced(p.log[dayKey(now)]);
+  const goal = goalProgress(p, now);
+  const envelopeReady = canOpenEnvelope(p, now);
+  const opened = dayKey(now) in p.rewards.envelopes;
+  const hi = greeting(now);
   const levelNames = LEVELS.filter((l) => p.settings.levels.includes(l.id)).map((l) => l.name).join(' · ');
 
   const activity: string[] = [];
   if (tl.r) activity.push(plural(tl.r, 'repaso', 'repasos'));
-  if (tl.w) activity.push(plural(tl.w, 'carácter escrito', 'caracteres escritos'));
+  if (tl.w) activity.push(plural(tl.w, 'palabra escrita', 'palabras escritas'));
   if (tl.h) activity.push(plural(tl.h, 'ejercicio de habla', 'ejercicios de habla'));
   const activityText = activity.length
     ? `Hoy llevas ${activity.join(', ').replace(/, ([^,]*)$/, ' y $1')}.`
-    : 'Aún no has practicado hoy.';
+    : 'Cada tarjeta, palabra escrita o ejercicio de habla cuenta para la meta.';
+
+  const left = goal.goal - goal.done;
+  const goalTitle = goal.reached ? '¡Meta cumplida!' : goal.done ? `Te ${left === 1 ? 'falta 1 actividad' : `faltan ${left} actividades`}` : `Meta del día: ${goal.goal}`;
+  const goalNote = goal.reached
+    ? opened
+      ? `Ya abriste tu sobre rojo. Hoy ganaste ${plural(tl.c, 'moneda', 'monedas')}.`
+      : 'Tu sobre rojo te espera.'
+    : 'Al cumplirla abres un sobre rojo con monedas.';
+  const atRisk = st > 0 && !doneToday && now.getHours() >= 17;
 
   // Progreso por estado
   const readDeck = deckFor(p, 'read', words.byId);
@@ -49,32 +79,68 @@ export function Home({ p, words, read, write, go }: Props) {
         <div>
           <p className="eyebrow">{cap(DATE_FMT.format(now))}</p>
           <h1 id="h-inicio">
-            <span className="hz">你好！</span> {levelNames}
+            <span className="hz greet-hz" lang="zh-Hans">{hi.hz}</span>
           </h1>
         </div>
         <div className="top-r">
-          <span className="chip" aria-label={`Racha de ${plural(st, 'día', 'días')} seguidos`}>
+          <button
+            type="button"
+            className={`chip chip-btn streak ${st > 0 ? 'lit' : 'off'}`}
+            aria-label={`Racha de ${plural(st, 'día', 'días')}. Ver calendario`}
+            onClick={() => setSheet('racha')}
+          >
             <IconFlame size={18} />
-            {plural(st, 'día', 'días')}
-          </span>
+            {st}
+          </button>
+          <CoinCount value={p.rewards.coins} onClick={() => go('premios')} />
           <button type="button" className="icon-link" aria-label="Ajustes" onClick={() => go('ajustes')}>
             <IconGear size={20} />
           </button>
         </div>
       </header>
+      <p className="greet-sub">
+        {hi.py} · {hi.es}
+      </p>
 
       <section className="panel" aria-labelledby="h-hoy">
-        <h2 className="label" id="h-hoy">Tarjetas para hoy</h2>
+        <div className="hero-top">
+          <GoalRing done={goal.done} goal={goal.goal} />
+          <div>
+            <h2 className="label" id="h-hoy">Hoy</h2>
+            <p className="hero-title">{goalTitle}</p>
+            <p className="note">{goalNote}</p>
+          </div>
+        </div>
         <div className="trio">
           <div><span className="num c-new">{read.newLeft}</span><span className="sub">Nuevas</span></div>
           <div><span className="num c-learn">{read.learn}</span><span className="sub">Aprendiendo</span></div>
           <div><span className="num c-rev">{read.review}</span><span className="sub">Para repasar</span></div>
         </div>
         <button type="button" className={`btn-primary${read.total ? '' : ' is-done'}`} onClick={() => go('repasar')}>
-          {read.total ? `Empezar repaso · ${read.total}` : 'Todo al día'}
+          {read.total ? `Empezar repaso · ${read.total}` : 'Tarjetas al día'}
         </button>
         <p className="note">{activityText}</p>
       </section>
+
+      {envelopeReady && (
+        <section className="panel gift" aria-labelledby="h-sobre">
+          <EnvelopeArt state="closed" mini />
+          <div className="gift-txt">
+            <h2 className="hero-title" id="h-sobre">Tu sobre rojo está listo</h2>
+            <button type="button" className="btn-primary" onClick={() => setSheet('sobre')}>Abrir sobre rojo</button>
+          </div>
+        </section>
+      )}
+
+      {atRisk && (
+        <p className="risk">
+          <IconFlame size={20} />
+          <span>
+            Practica hoy para no perder tu racha de {plural(st, 'día', 'días')}.
+            {p.rewards.shields > 0 && ` Si no alcanzas, te ${p.rewards.shields === 1 ? 'cubre tu protector' : 'cubren tus protectores'}.`}
+          </span>
+        </p>
+      )}
 
       <section className="panel" aria-labelledby="h-mas">
         <h2 className="label" id="h-mas">Más práctica</h2>
@@ -94,8 +160,8 @@ export function Home({ p, words, read, write, go }: Props) {
 
       <section className="panel" aria-labelledby="h-prog">
         <div className="top">
-          <h2 className="label" id="h-prog">Tu progreso</h2>
-          <span className="note">{words.words.length - c.unseen} de {words.words.length} vistas</span>
+          <h2 className="label" id="h-prog">Tu progreso · {levelNames}</h2>
+          <span className="note">{words.words.length - c.unseen} de {words.words.length}</span>
         </div>
         <div className="stack" role="img" aria-label={`${c.master} dominadas, ${c.review} en repaso, ${c.learn} aprendiendo, ${c.unseen} sin ver`}>
           <span className="seg-master" style={{ width: `${(c.master / total) * 100}%` }} />
@@ -123,6 +189,17 @@ export function Home({ p, words, read, write, go }: Props) {
         </div>
         {max === 0 && <p className="note">Aún no hay repasos programados. Aparecen cuando aprendes tus primeras palabras.</p>}
       </section>
+
+      <Sheet open={sheet === 'racha'} onClose={() => setSheet(null)} title="Tu racha">
+        <StreakCalendar
+          p={p}
+          onShop={() => {
+            setSheet(null);
+            go('premios');
+          }}
+        />
+      </Sheet>
+      <EnvelopeSheet open={sheet === 'sobre'} onClose={() => setSheet(null)} />
     </section>
   );
 }

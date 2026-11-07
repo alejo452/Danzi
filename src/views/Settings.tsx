@@ -4,6 +4,7 @@ import { ReminderPanel } from '../components/ReminderPanel';
 import { isReady, LEVELS } from '../data/levels';
 import { dayKey } from '../lib/dates';
 import { freshProgress, normalizeProgress, type Progress, type Settings as S } from '../lib/progress';
+import { DAILY_GOALS } from '../lib/rewards';
 import { charsToWrite, countSavedStrokes } from '../lib/strokes';
 import { replaceProgress, updateProgress } from '../lib/useProgress';
 import type { WordsState } from '../lib/useWords';
@@ -118,6 +119,11 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
 
       <section className="panel">
         <fieldset>
+          <legend>Meta diaria</legend>
+          {seg('goal', DAILY_GOALS, p.settings.dailyGoal, (n) => set({ dailyGoal: n }))}
+          <p className="note">Actividades por día para abrir el sobre rojo: tarjetas, palabras escritas y ejercicios de habla.</p>
+        </fieldset>
+        <fieldset>
           <legend>Palabras nuevas por día</legend>
           {seg('npd', [5, 10, 15, 20], p.settings.newPerDay, (n) => set({ newPerDay: n }))}
         </fieldset>
@@ -185,7 +191,7 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
           <button type="button" className="btn-line danger" onClick={() => setConfirmReset(true)}>Borrar mi progreso</button>
         ) : (
           <div className="confirm">
-            <p>Se borran las tarjetas, la escritura, la racha y el historial. No se puede deshacer.</p>
+            <p>Se borran las tarjetas, la escritura, la racha, el historial, las monedas, los sellos y los temas comprados. No se puede deshacer.</p>
             <div className="two">
               <button type="button" className="btn-line" onClick={() => setConfirmReset(false)}>Cancelar</button>
               <button

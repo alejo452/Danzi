@@ -23,6 +23,7 @@ export function letters(s: string): string {
  * - 咳 como «toser» se lee ké (咳个不停 ké ge bù tíng); pinyin-pro da la interjección hāi.
  * - 血 suelto, en el habla, se lee xiě (手上有血 shǒu shang yǒu xiě); pinyin-pro da xuè.
  * - 着 como «lograr» se lee zháo (睡不着 shuì bu zháo); pinyin-pro da zhe.
+ * - 系 como «abrochar, amarrar» se lee jì (系安全带 jì ānquándài); pinyin-pro da xì.
  */
 export const ALSO_READ: Record<string, string[]> = {
   地: ['de'],
@@ -33,6 +34,7 @@ export const ALSO_READ: Record<string, string[]> = {
   咳: ['ke'],
   血: ['xie'],
   着: ['zhao'],
+  系: ['ji'],
 };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */

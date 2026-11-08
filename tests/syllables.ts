@@ -26,6 +26,7 @@ export function letters(s: string): string {
  * - 系 como «abrochar, amarrar» se lee jì (系安全带 jì ānquándài); pinyin-pro da xì.
  * - 调 se lee tiáo («ajustar», 空调 kōngtiáo) o diào («trasladar», 调到 diào dào); pinyin-pro a veces da la otra lectura.
  * - 似 en 类似 se lee sì (类似的问题 lèisì de wèntí); delante de 的, pinyin-pro da shì, como en 似的.
+ * - 盛 como «servir (comida)» se lee chéng (盛一碗汤 chéng yì wǎn tāng); pinyin-pro da shèng.
  */
 export const ALSO_READ: Record<string, string[]> = {
   地: ['de'],
@@ -39,6 +40,7 @@ export const ALSO_READ: Record<string, string[]> = {
   系: ['ji'],
   调: ['diao', 'tiao'],
   似: ['si'],
+  盛: ['cheng'],
 };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */

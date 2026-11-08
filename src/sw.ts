@@ -37,7 +37,7 @@ const TEST_MESSAGE: ReminderMessage = {
 };
 
 /** Si algo falla al leer el progreso, el aviso sale igual con este texto. */
-const PLAIN_MESSAGE: ReminderMessage = { title: 'Es hora de practicar chino', body: 'Abre Danzi y repasa un rato.', studiedToday: false };
+const PLAIN_MESSAGE: ReminderMessage = { title: 'Xi Bao te espera para practicar', body: 'Abre Danzi y repasa un rato.', studiedToday: false };
 
 async function buildMessage(kind: string): Promise<ReminderMessage> {
   if (kind === 'prueba') return TEST_MESSAGE;

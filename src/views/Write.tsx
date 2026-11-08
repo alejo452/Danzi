@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import HanziWriter from 'hanzi-writer';
 import { CoinCount } from '../components/CoinCount';
 import { IconSpeaker } from '../components/Icons';
+import { MascotSays } from '../components/MascotCard';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
+import { PHRASES } from '../lib/mascot';
 import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canSpeak, speak } from '../lib/speech';
@@ -160,7 +162,7 @@ export function Write({ p, words, counts, go }: Props) {
       <section className="view" aria-labelledby="h-esc">
         {header}
         <div className="panel done">
-          <span className="hz big" lang="zh-Hans">写</span>
+          <MascotSays mood={tl.w > 0 ? 'feliz' : 'listo'} phrase={tl.w > 0 ? PHRASES.muyBien : PHRASES.escribir} />
           <h2>{none ? 'Aún no hay caracteres para escribir' : 'Listo por hoy'}</h2>
           <p>{parts.join(' ')}</p>
           <div className="btns">

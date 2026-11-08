@@ -34,7 +34,7 @@ describe('avisos del recordatorio local', () => {
   it('avisa hoy si todavía no practicaste y la hora no ha pasado', () => {
     const [first] = planLocalReminders(freshProgress(), HOUR, AFTERNOON);
     expect(dayKey(first.at)).toBe(day(0));
-    expect(first.title).toBe('Es hora de practicar chino');
+    expect(first.title).toBe('Xi Bao te espera para practicar');
   });
 
   it('no avisa hoy si ya practicaste', () => {
@@ -61,7 +61,7 @@ describe('avisos del recordatorio local', () => {
     const plan = planLocalReminders(p, HOUR, AFTERNOON);
     // Mañana la racha de 2 días está en juego; pasado mañana ya se habría perdido.
     expect(plan[0].title).toBe('No pierdas tu racha de 2 días');
-    expect(plan[1].title).toBe('Es hora de practicar chino');
+    expect(plan[1].title).toBe('Xi Bao te espera para practicar');
     // La tarjeta aparece el día que vence, no antes.
     expect(plan[1].body).toBe('Practica un rato en Escribir o Hablar.');
     expect(plan[2].body).toBe('Tienes 1 tarjeta para repasar.');

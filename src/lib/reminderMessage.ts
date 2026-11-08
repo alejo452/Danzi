@@ -52,7 +52,7 @@ export function reminderMessage(p: Progress, now: Date): ReminderMessage {
           ? `${fresh === 1 ? 'Te espera' : 'Te esperan'} ${plural(fresh, 'palabra nueva', 'palabras nuevas')}.`
           : 'Practica un rato en Escribir o Hablar.';
   return {
-    title: days >= 1 ? `No pierdas tu racha de ${plural(days, 'día', 'días')}` : 'Es hora de practicar chino',
+    title: days >= 1 ? `No pierdas tu racha de ${plural(days, 'día', 'días')}` : 'Xi Bao te espera para practicar',
     body: days >= 1 ? `${todo} Con unos minutos la mantienes.` : todo,
     studiedToday,
   };
@@ -77,7 +77,8 @@ export function reminderNotification(
   const options: NotificationOptions & { renotify?: boolean } = {
     body: m.body,
     lang: 'es',
-    icon: new URL('icon-192.png', scope).href,
+    // La cara de Xi Bao (scripts/mascot-images.mjs); la insignia de la barra sigue siendo el 汉.
+    icon: new URL('xibao-192.png', scope).href,
     badge: new URL('badge-96.png', scope).href,
     // Con la misma etiqueta, el aviso de hoy reemplaza al de ayer en lugar de acumularse…
     tag: TAGS[kind],

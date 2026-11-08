@@ -3,11 +3,13 @@ import { CoinCount } from '../components/CoinCount';
 import { EnvelopeArt, EnvelopeSheet } from '../components/Envelope';
 import { GoalRing } from '../components/GoalRing';
 import { IconFlame, IconGear, IconMic, IconPencil } from '../components/Icons';
+import { MascotCard } from '../components/MascotCard';
 import { Sheet } from '../components/Sheet';
 import { StreakCalendar } from '../components/StreakCalendar';
 import { LEVELS } from '../data/levels';
 import { dayKey, plural } from '../lib/dates';
-import { practiced, streak, todayLog, type Progress } from '../lib/progress';
+import { homeLine } from '../lib/mascot';
+import { streak, todayLog, type Progress } from '../lib/progress';
 import { forecast, type QueueCounts } from '../lib/queue';
 import { canOpenEnvelope, goalProgress } from '../lib/rewards';
 import { isLearning, isMature } from '../lib/srs';
@@ -34,7 +36,6 @@ export function Home({ p, words, read, write, go }: Props) {
   const now = new Date();
   const st = streak(p, now);
   const tl = todayLog(p, now);
-  const doneToday = practiced(p.log[dayKey(now)]);
   const goal = goalProgress(p, now);
   const envelopeReady = canOpenEnvelope(p, now);
   const opened = dayKey(now) in p.rewards.envelopes;
@@ -56,7 +57,7 @@ export function Home({ p, words, read, write, go }: Props) {
       ? `Ya abriste tu sobre rojo. Hoy ganaste ${plural(tl.c, 'moneda', 'monedas')}.`
       : 'Tu sobre rojo te espera.'
     : 'Al cumplirla abres un sobre rojo con monedas.';
-  const atRisk = st > 0 && !doneToday && now.getHours() >= 17;
+  const line = homeLine(p, now, read.total);
 
   // Progreso por estado
   const readDeck = deckFor(p, 'read', words.byId);
@@ -102,6 +103,8 @@ export function Home({ p, words, read, write, go }: Props) {
         {hi.py} · {hi.es}
       </p>
 
+      <MascotCard line={line} />
+
       <section className="panel" aria-labelledby="h-hoy">
         <div className="hero-top">
           <GoalRing done={goal.done} goal={goal.goal} />
@@ -130,16 +133,6 @@ export function Home({ p, words, read, write, go }: Props) {
             <button type="button" className="btn-primary" onClick={() => setSheet('sobre')}>Abrir sobre rojo</button>
           </div>
         </section>
-      )}
-
-      {atRisk && (
-        <p className="risk">
-          <IconFlame size={20} />
-          <span>
-            Practica hoy para no perder tu racha de {plural(st, 'día', 'días')}.
-            {p.rewards.shields > 0 && ` Si no alcanzas, te ${p.rewards.shields === 1 ? 'cubre tu protector' : 'cubren tus protectores'}.`}
-          </span>
-        </p>
       )}
 
       <section className="panel" aria-labelledby="h-mas">

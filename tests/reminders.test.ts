@@ -41,7 +41,7 @@ const day = (offset: number) => {
 describe('texto del recordatorio', () => {
   it('invita a empezar si no hay racha', () => {
     const m = reminderMessage(freshProgress(), NOW);
-    expect(m).toEqual({ title: 'Es hora de practicar chino', body: 'Te esperan 10 palabras nuevas.', studiedToday: false });
+    expect(m).toEqual({ title: 'Xi Bao te espera para practicar', body: 'Te esperan 10 palabras nuevas.', studiedToday: false });
   });
 
   it('avisa que la racha está en juego y cuenta las tarjetas de hoy', () => {
@@ -91,14 +91,14 @@ describe('texto del recordatorio', () => {
 
 describe('notificación', () => {
   const scope = 'https://alejo452.github.io/Danzi/';
-  const pending = { title: 'Es hora de practicar chino', body: 'Te esperan 10 palabras nuevas.', studiedToday: false };
+  const pending = { title: 'Xi Bao te espera para practicar', body: 'Te esperan 10 palabras nuevas.', studiedToday: false };
 
   it('suena aunque el aviso de ayer siga en la barra', () => {
     const { options } = reminderNotification(pending, scope) as { options: NotificationOptions & { renotify?: boolean } };
     expect(options.tag).toBe('danzi-recordatorio');
     expect(options.renotify).toBe(true);
     expect(options.silent).toBe(false);
-    expect(options.icon).toBe('https://alejo452.github.io/Danzi/icon-192.png');
+    expect(options.icon).toBe('https://alejo452.github.io/Danzi/xibao-192.png');
     expect(options.data).toEqual({ url: 'https://alejo452.github.io/Danzi/#repasar' });
   });
 

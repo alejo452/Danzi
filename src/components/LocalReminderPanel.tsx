@@ -151,10 +151,7 @@ export function LocalReminderPanel() {
         {hourSelect('Cambiar la hora')}
         <button type="button" className="btn-line" disabled={busy} onClick={test}>Probar notificación</button>
         <button type="button" className="btn-line danger" disabled={busy} onClick={turnOff}>Desactivar recordatorio</button>
-        <p className="note">
-          Si no abres Danzi en dos semanas, los avisos se detienen hasta que vuelvas. Si antes activaste el recordatorio en la versión web,
-          borra el secreto DANZI_RECORDATORIO en GitHub para que no te lleguen dos avisos.
-        </p>
+        <p className="note">Si no abres Danzi en dos semanas, los avisos se detienen hasta que vuelvas.</p>
       </>
     );
   }

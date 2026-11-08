@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { CoinCount } from '../components/CoinCount';
 import { Confetti } from '../components/Confetti';
 import { EnvelopeSheet } from '../components/Envelope';
+import { MascotSays } from '../components/MascotCard';
 import { IconSpeaker } from '../components/Icons';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
+import { PHRASES } from '../lib/mascot';
 import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canOpenEnvelope, goalProgress } from '../lib/rewards';
@@ -110,7 +112,7 @@ export function Review({ p, words, counts, go }: Props) {
         {header}
         <div className="panel done">
           {answered > 0 && <Confetti />}
-          <span className="hz big" lang="zh-Hans">完成</span>
+          <MascotSays mood={answered > 0 ? 'feliz' : 'listo'} phrase={answered > 0 ? PHRASES.completado : PHRASES.completo} />
           <h2>{answered > 0 ? '¡Terminaste el repaso!' : 'Listo por hoy'}</h2>
           <p>{parts.join(' ')}</p>
           <div className="btns">

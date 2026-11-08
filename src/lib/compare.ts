@@ -29,10 +29,10 @@ function syllables(text: string): Syl[] {
 }
 
 /**
- * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor, 男孩儿 nánháir, 聊天儿 liáotiānr, 没法儿 méifǎr).
+ * Caracteres que suelen llevar erhua (哪儿 nǎr, 一点儿 yìdiǎnr, 面条儿 miàntiáor, 男孩儿 nánháir, 聊天儿 liáotiānr, 没法儿 méifǎr, 大伙儿 dàhuǒr).
  * En el resto (儿子, 女儿) 儿 es una sílaba propia.
  */
-export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头', '孩', '天', '活', '法']);
+export const ERHUA_BEFORE = new Set(['哪', '这', '那', '点', '玩', '条', '会', '块', '边', '空', '事', '头', '孩', '天', '活', '法', '伙']);
 
 /** Si 儿 va seguido de uno de estos, es parte de otra palabra: 今天儿子… es jīntiān érzi, no jīntiānr zi. */
 const NOT_ERHUA_NEXT = new Set(['子', '童']);

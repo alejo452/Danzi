@@ -85,7 +85,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
      - Lleva marcas de tono y agrupa las sílabas por palabras: `Wǒ xǐhuan hē chá.`
      - Marca los tonos neutros sin tilde (`xièxie`, `péngyou`) y aplica los cambios de 一 y 不 (`yí ge`, `bú shì`).
      - Escribe el erhua unido (`nǎr`). Si la prueba no lo reconoce, agrega el carácter anterior a `ERHUA_BEFORE` en `src/lib/compare.ts` (así se agregaron 孩 para 男孩儿 y 天 para 聊天儿). 儿 seguido de 子 no cuenta como erhua (今天儿子 es jīntiān érzi).
-     - La prueba compara con `pinyin-pro`, que lee mal algunos caracteres: 地 como partícula (`mànmàn de`), 得 como «tener que» (`děi`) y 还 como «devolver» (`huán`). Escribe la lectura correcta; la prueba la acepta por `ALSO_READ` en `tests/data.test.ts`. Si encuentras otro caso así, agrégalo ahí en lugar de escribir un pinyin incorrecto.
+     - La prueba compara con `pinyin-pro`, que lee mal algunos caracteres: 地 como partícula (`mànmàn de`), 得 como «tener que» (`děi`), 还 como «devolver» (`huán`) y 重 como «de nuevo» (`chóng`). Escribe la lectura correcta; la prueba la acepta por `ALSO_READ` en `tests/syllables.ts`. Si encuentras otro caso así, agrégalo ahí en lugar de escribir un pinyin incorrecto.
    - **Traducción:** español natural de Colombia, no una traducción palabra por palabra.
 3. Cuando el borrador esté completo, muévelo a `src/data/hsk/level-2.json`, ejecuta `npm test` y corrige lo que marquen las pruebas.
 4. El nivel aparece solo en Ajustes. No hay que tocar código.

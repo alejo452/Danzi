@@ -15,10 +15,11 @@ const dir = 'data-source/drafts';
 const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /^level-.+\.json$/.test(f)) : [];
 
 /**
- * Caracteres de nombres propios que se pueden usar aunque no estén en el vocabulario hasta ese nivel
- * (como en 哥伦比亚 o 波哥大). Agrega aquí solo nombres propios.
+ * Caracteres de nombres propios que se pueden usar aunque no estén en el vocabulario hasta ese nivel:
+ * 哥伦比亚 (Colombia), 波哥大 (Bogotá), 麦德林 (Medellín), 卡塔赫纳 (Cartagena) y 巴兰基亚 (Barranquilla).
+ * Agrega aquí solo caracteres de nombres propios.
  */
-export const PROPER_NAME_CHARS = new Set([...'哥伦比亚波']);
+const PROPER_NAME_CHARS = new Set([...'哥伦比亚波麦德林卡塔赫纳巴兰基']);
 
 /** Caracteres de las palabras del temario hasta ese nivel, incluido. */
 function charsUpTo(level: string): Set<string> {

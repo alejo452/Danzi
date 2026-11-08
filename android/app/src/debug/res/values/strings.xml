@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- La versión de pruebas (compilación debug) se instala al lado de la normal, con su propio
+     progreso, y se llama distinto para no confundirlas. -->
+<resources>
+    <string name="app_name">Danzi Pruebas</string>
+    <string name="title_activity_main">Danzi Pruebas</string>
+</resources>

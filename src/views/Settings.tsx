@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconBack } from '../components/Icons';
+import { LocalReminderPanel } from '../components/LocalReminderPanel';
 import { ReminderPanel } from '../components/ReminderPanel';
 import { isReady, LEVELS } from '../data/levels';
 import { dayKey } from '../lib/dates';
+import { isNative } from '../lib/native';
 import { freshProgress, normalizeProgress, type Progress, type Settings as S } from '../lib/progress';
 import { DAILY_GOALS } from '../lib/rewards';
 import { charsToWrite, countSavedStrokes } from '../lib/strokes';
@@ -20,6 +22,11 @@ function useSavedStrokes(words: WordsState) {
 
   useEffect(() => {
     if (words.loading) return;
+    // En la APK los trazos vienen dentro de la app: siempre están.
+    if (isNative) {
+      setSaved(null);
+      return;
+    }
     let alive = true;
     setSaved(undefined);
     countSavedStrokes(chars).then((n) => alive && setSaved(n));
@@ -58,11 +65,23 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
     if (levels.length) set({ levels });
   };
 
-  const exportProgress = () => {
-    const blob = new Blob([JSON.stringify(p, null, 1)], { type: 'application/json' });
+  const exportProgress = async () => {
+    const name = `danzi-progreso-${dayKey()}.json`;
+    const json = JSON.stringify(p, null, 1);
+    if (isNative) {
+      // En la APK se abre el diálogo «Guardar en…» de Android (Descargas, Google Drive, etc.).
+      setMessage('');
+      try {
+        if (await (await import('../native/files')).saveTextFile(name, json)) setMessage('Archivo de progreso guardado.');
+      } catch {
+        setMessage('No se pudo guardar el archivo. Vuelve a intentarlo y elige otra carpeta.');
+      }
+      return;
+    }
+    const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `danzi-progreso-${dayKey()}.json`;
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     setMessage('Archivo de progreso descargado.');
@@ -115,7 +134,7 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
         </fieldset>
       </section>
 
-      <ReminderPanel />
+      {isNative ? <LocalReminderPanel /> : <ReminderPanel />}
 
       <section className="panel">
         <fieldset>
@@ -166,7 +185,8 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
           <button type="button" className="btn-line" onClick={exportProgress}>Descargar</button>
           <button type="button" className="btn-line" onClick={() => fileRef.current?.click()}>Cargar archivo</button>
         </div>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+        {/* En la APK no se filtra por tipo: Android a veces guarda el archivo con otro tipo y lo escondería. */}
+        <input ref={fileRef} type="file" accept={isNative ? undefined : 'application/json,.json'} hidden onChange={(e) => onFile(e.target.files?.[0])} />
         {pendingImport && (
           <div className="confirm">
             <p>Esto reemplaza tu progreso actual en este dispositivo por el del archivo.</p>

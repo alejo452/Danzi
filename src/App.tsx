@@ -3,6 +3,7 @@ import { Celebrations } from './components/Celebrations';
 import { IconBook, IconCards, IconHome, IconMic, IconPencil } from './components/Icons';
 import { Toasts } from './components/Toasts';
 import { dayKey } from './lib/dates';
+import { isNative } from './lib/native';
 import { newLeftToday } from './lib/progress';
 import { queueCounts } from './lib/queue';
 import { applyShields, goalProgress } from './lib/rewards';
@@ -74,17 +75,36 @@ export default function App() {
     }
   }, [loaded, today, reached, view]);
 
+  // En la APK, el celular programa el recordatorio. Se reprograma cuando cambia el progreso:
+  // por ejemplo, si ya practicaste hoy, el aviso de hoy se quita.
+  useEffect(() => {
+    if (!isNative || !loaded) return;
+    import('./native/reminders').then((m) => m.queueSync()).catch(() => undefined);
+  }, [loaded, p]);
+
+  // En la APK, tocar el aviso abre la vista que indica.
+  useEffect(() => {
+    if (!isNative) return;
+    import('./native/reminders')
+      .then((m) => m.listenForTaps((v) => VIEWS.includes(v as View) && (location.hash = v)))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
     window.addEventListener('hashchange', onHash);
     // Refresca los contadores cada minuto y al volver a la app (las tarjetas vencen con el tiempo).
+    // En la APK, Capacitor avisa con el evento «resume».
     const t = setInterval(() => setTick((n) => n + 1), 60_000);
     const onVis = () => document.visibilityState === 'visible' && setTick((n) => n + 1);
+    const onResume = () => setTick((n) => n + 1);
     document.addEventListener('visibilitychange', onVis);
+    document.addEventListener('resume', onResume);
     return () => {
       window.removeEventListener('hashchange', onHash);
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('resume', onResume);
     };
   }, []);
 

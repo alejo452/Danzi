@@ -1,6 +1,6 @@
 # Danzi — guía para Claude
 
-App web instalable (PWA) para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (《HSK考试大纲》, noviembre de 2025). La usa Diego, estudiante colombiano, sobre todo desde el celular. Toda la interfaz está en **español de Colombia, tuteando**.
+App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (《HSK考试大纲》, noviembre de 2025). Es una app web instalable (PWA) que también se empaqueta como APK de Android con Capacitor: es el mismo código. La usa Diego, estudiante colombiano, sobre todo desde su celular Android. Toda la interfaz está en **español de Colombia, tuteando**.
 
 ## Comandos
 
@@ -9,6 +9,9 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 - `npm run check`: revisión de tipos.
 - `npm run build`: build de producción (copia antes los datos de trazos a `public/strokes/`).
 - `npm run data:skeleton -- <nivel>`: crea el borrador de un nivel desde el temario oficial.
+- `npm run android:sync`: build de la web y copia a la app de Android (`cap sync android`).
+- APK: en `android/`, `./gradlew assembleDebug` compila «Danzi Pruebas» y `./gradlew assembleRelease` la normal (sale firmada solo si `DANZI_FIRMA_ANDROID` está definido). Necesita Java 21 y el SDK de Android en `ANDROID_HOME`. En la nube, el entorno «Danzi» permite `dl.google.com`; si el SDK no está, descarga `cmdline-tools` de `https://dl.google.com/android/repository/` en `$ANDROID_HOME/cmdline-tools/latest` y ejecuta `sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"`.
+- `npm run android:icons`: regenera los íconos de Android desde `public/icon.svg`.
 
 ## Estructura
 
@@ -35,6 +38,14 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 - `src/data/levels.ts`: carga de los niveles. Un nivel está disponible si existe `src/data/hsk/level-<id>.json`. La lista de niveles está en `src/data/levelList.ts`, que no carga datos para que también la pueda usar el service worker.
 - `data-source/hsk-2025-syllabus.json`: temario oficial completo, con 11 000 palabras en filas `[id, nivel, hanzi, pinyin, categoría]`. No editarlo.
 - `scripts/build-strokes.mjs`: copia los trazos de `hanzi-writer-data` solo para los caracteres del vocabulario. El service worker los descarga todos al instalar la app (`globPatterns` en `vite.config.ts`), así que la escritura funciona sin internet.
+- APK de Android (Capacitor 8):
+  - `capacitor.config.ts` y `android/`: el proyecto de Android (id `io.github.alejo452.danzi`). `cap sync` copia `dist/` a `android/app/src/main/assets/public`, que no va en git. La compilación de pruebas (`debug`) se llama «Danzi Pruebas» y usa el id `….pruebas`, así que se instala al lado de la normal con su propio progreso.
+  - `src/lib/native.ts`: `isNative`, que dice si la app corre dentro de la APK. Todo el código propio de la APK está en `src/native/` y se importa solo con `import()` cuando `isNative` es true.
+  - Recordatorio de la APK: el celular lo programa con `@capacitor/local-notifications`, sin GitHub. `src/lib/localReminders.ts` decide los avisos de los próximos 14 días (funciones puras); `src/native/reminders.ts` los programa y se reprograma cuando cambia el progreso; `src/components/LocalReminderPanel.tsx` es su sección de Ajustes. La hora se guarda en IndexedDB con la clave `reminder-local`.
+  - `src/native/speech.ts`: en la APK, la voz usa los motores de Android (`@capacitor-community/text-to-speech` y `speech-recognition`), porque la vista web de Android no trae la voz de Chrome. `src/lib/speech.ts` elige cuál usar.
+  - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
+  - `scripts/android-icons.mjs`, `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
+  - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
 
 ## Reglas que no se rompen
 
@@ -50,6 +61,11 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 4. **Los ids de los sellos y de los temas no cambian.** Son las claves en `progress.rewards` (`SEALS` y `THEMES` en `src/lib/rewards.ts`). Para cambiar lo que pide o paga un sello, cambia `goal` o `coins`, nunca el `id`.
 5. **El recordatorio es de cada dispositivo.** Se guarda en IndexedDB con la clave `reminder`, fuera de `Progress`, para que no pase a otro dispositivo al descargar y cargar el progreso. El código lleva claves privadas: nunca lo imprimas ni lo guardes en el repositorio.
 6. **Los workflows reciben solo los secretos que usan.** Nunca pases `toJSON(secrets)` a un script: GitHub lo marca como posiblemente malicioso y frena el workflow hasta que alguien lo apruebe. Nombra cada secreto (`${{ secrets.DANZI_RECORDATORIO }}`) y dáselo solo al paso que lo necesita. `tests/workflows.test.ts` lo comprueba.
+7. **La APK no cambia de identidad.**
+   - No cambies el `appId` (`io.github.alejo452.danzi`) ni el origen de la página (Capacitor la sirve desde `https://localhost`): el progreso de la APK vive en ese origen.
+   - La llave de firma (secreto `DANZI_FIRMA_ANDROID`, huella en `android/firma-sha256.txt`) no se cambia, nunca se imprime y nunca se guarda en el repositorio. Con otra llave, Android no deja instalar la versión nueva encima.
+   - Nunca recomiendes desinstalar la APK normal: desinstalarla borra el progreso. «Danzi Pruebas» sí se puede desinstalar.
+8. **La versión web no carga código de la APK.** Lo de Android va en `src/native/` y se importa con `import()` detrás de `isNative`. `vite.config.ts` nombra esos archivos `native-*.js` y el service worker no los guarda. No uses `manualChunks`: arrastra módulos compartidos a esos archivos y la web los cargaría al abrir. Después de tocarlo, revisa que `dist/assets/index-*.js` no tenga un `import … from "./native-…"`.
 
 ## Cómo agregar un nivel (por ejemplo, HSK 2)
 
@@ -76,6 +92,7 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 - Los temas de color (`:root[data-accent="…"]`) solo cambian `--accent`, `--on-accent`, `--grid` y `--bar`. Si agregas uno, defínelo en claro y en oscuro, con contraste AA (4,5:1) para el texto y los botones.
 - Animaciones: todas están en `src/styles.css` y se apagan con `prefers-reduced-motion`. Ningún cambio de estado puede depender de que una animación termine. Las celebraciones (sellos, protector usado) solo aparecen en Inicio y en Premios, nunca en medio de un repaso.
 - Fuentes: Space Grotesk para títulos, Inter para texto y Noto Sans SC para caracteres. Pon `lang="zh-Hans"` en todo texto en chino.
+- En la APK: no hay service worker, «Descargar» usa `SaveFile`, «Cargar archivo» no filtra por tipo (Android a veces guarda el JSON con otro tipo) y las secciones que solo aplican a la web (como «Escritura sin internet») se esconden con `isNative`.
 - Accesibilidad:
   - Usa botones reales.
   - Pon `aria-label` en los botones que solo tienen ícono.
@@ -89,7 +106,11 @@ App web instalable (PWA) para aprender chino mandarín desde el español, siguie
 
 Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas, hace el build y publica en GitHub Pages. La app vive en `https://<usuario>.github.io/<repo>/`. `BASE_PATH` se define en el workflow.
 
-`.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios. Cómo se configura está en el README. Cada lunes, su trabajo `mantener-activo` lo vuelve a habilitar con la API de GitHub, para que GitHub no lo pause tras 60 días sin actividad en el repositorio público.
+`.github/workflows/recordatorios.yml` corre cada hora desde `main` y envía los recordatorios de la versión web. Cómo se configura está en el README. Cada lunes, su trabajo `mantener-activo` lo vuelve a habilitar con la API de GitHub, para que GitHub no lo pause tras 60 días sin actividad en el repositorio público.
+
+`.github/workflows/android.yml` compila la APK:
+- En cada push a `main` (salvo cambios solo en `.md`), firma la APK normal con `DANZI_FIRMA_ANDROID`, comprueba que la huella coincida con `android/firma-sha256.txt` y la publica en Releases como `danzi.apk`. El enlace fijo es `https://github.com/alejo452/Danzi/releases/latest/download/danzi.apk`. `versionCode` es el número de ejecución del workflow, que siempre sube.
+- En cada pull request compila «Danzi Pruebas» y la deja como artefacto `danzi-pruebas`, sin secretos.
 
 ## Flujo de trabajo
 
@@ -97,7 +118,8 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 - Al fusionarse en `main`, la app se publica sola. No hace falta ejecutar «Publicar en GitHub Pages» a mano.
 - Si el pull request de tu rama ya se fusionó, reinicia la rama desde `main` antes de seguir.
 - Si GitHub dice que un workflow «may be malicious», el dueño lo revisa y lo aprueba una vez por cada versión del archivo. Mientras tanto no corre, ni siquiera de forma programada.
-- En el celular, la app se actualiza sola al abrirla con internet. Si se ve la versión anterior, basta con cerrarla del todo y abrirla de nuevo. Nunca recomiendes borrar los datos del navegador: eso borra el progreso.
+- En el celular, la app web se actualiza sola al abrirla con internet. Si se ve la versión anterior, basta con cerrarla del todo y abrirla de nuevo. Nunca recomiendes borrar los datos del navegador: eso borra el progreso.
+- La APK se actualiza instalando la nueva encima (Releases). Nunca recomiendes desinstalarla ni borrar sus datos.
 - Desde este entorno no se puede abrir la página publicada (la red no llega a `github.io`). Lo que se publicó se ve en el registro del workflow.
 
 ## Cómo probar en el navegador
@@ -122,8 +144,16 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
   - Para simular un aviso de GitHub, envíalo al service worker con CDP (`ServiceWorker.deliverPushMessage`). El `registrationId` sale del evento `ServiceWorker.workerRegistrationUpdated`.
   - La entrega real a un celular solo se prueba con «Run workflow» en GitHub.
 - En cambios de interfaz, pasa axe (`axe-core`, instalado fuera del proyecto) por las pantallas que cambiaron.
+- Pantallas de la APK en el navegador: con `addInitScript`, define `window.androidBridge = {}` y un `window.Capacitor` con:
+  - `isNativePlatform: () => true`;
+  - `PluginHeaders`: el nombre y los métodos de cada complemento, con `rtype: 'promise'`, y `addListener` con otro `rtype`;
+  - `nativePromise(plugin, método, opciones)` y `nativeCallback(plugin, método, opciones, callback)`, que responden como el celular.
+
+  Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
 
 ## Pendiente (ideas acordadas, en orden)
 
-1. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas). Con la cuenta, el recordatorio también podría registrarse solo, sin pegar el código en GitHub.
-2. Estadísticas de retención y tiempo de estudio.
+1. APK, segunda parte: que se actualice sola. Al abrirla, descarga la versión nueva de la parte web y la usa la siguiente vez; si una versión nueva falla al arrancar, vuelve sola a la anterior. Solo los cambios en la parte de Android pedirían instalar otra APK.
+2. APK, tercera parte: «Danzi Pruebas» recibe la versión de cada pull request para probarla en el celular antes de fusionar, con una llave de prueba fija para no tener que desinstalarla entre versiones.
+3. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas).
+4. Estadísticas de retención y tiempo de estudio.

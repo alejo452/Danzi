@@ -5,7 +5,7 @@ import type { Word } from '../data/levels';
 import type { Comparison } from '../lib/compare';
 import { plural } from '../lib/dates';
 import { recordSpeaking, type Progress } from '../lib/progress';
-import { canListen, canSpeak, listenOnce, missingChineseVoice, speak } from '../lib/speech';
+import { canInstallVoice, canListen, canSpeak, checkChineseVoice, installVoice, listenOnce, speak } from '../lib/speech';
 import { eligibleForTones, shuffle, toneOptions } from '../lib/tones';
 import { updateProgress } from '../lib/useProgress';
 import type { WordsState } from '../lib/useWords';
@@ -19,8 +19,12 @@ export function Speak({ p, words }: Props) {
   const [mode, setMode] = useState<Mode>('tonos');
   const [voiceWarn, setVoiceWarn] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setVoiceWarn(missingChineseVoice()), 1200);
-    return () => clearTimeout(t);
+    let alive = true;
+    const t = setTimeout(() => checkChineseVoice().then((missing) => alive && setVoiceWarn(missing)), 1200);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, []);
 
   // Se practica con palabras ya vistas; al principio, con las primeras del nivel.
@@ -38,7 +42,15 @@ export function Speak({ p, words }: Props) {
         ))}
       </div>
       {!canSpeak && <p className="warn">Este navegador no puede leer en voz alta. Prueba en Chrome o Safari.</p>}
-      {voiceWarn && <p className="warn">No encontré una voz en chino en este dispositivo. Instálala en los ajustes de texto a voz para escuchar bien los tonos.</p>}
+      {voiceWarn &&
+        (canInstallVoice ? (
+          <div className="warn">
+            <p>Falta la voz en chino en este celular. Instálala para escuchar las palabras y los tonos: en la pantalla que se abre, descarga «Chino (China)» o «Chino mandarín».</p>
+            <button type="button" className="btn-line" onClick={installVoice}>Instalar la voz en chino</button>
+          </div>
+        ) : (
+          <p className="warn">No encontré una voz en chino en este dispositivo. Instálala en los ajustes de texto a voz para escuchar bien los tonos.</p>
+        ))}
       {mode === 'tonos' ? <Tones seen={seen} all={words.words} /> : <Repeat seen={seen} all={words.words} />}
     </section>
   );

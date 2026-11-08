@@ -1,19 +1,27 @@
 // Voz: lectura en voz alta (síntesis) y reconocimiento de voz en chino.
+// En el navegador usa la voz del navegador (Web Speech). En la APK de Android usa los motores de Android
+// (src/native/speech.ts), porque la vista web de Android no trae la voz de Chrome.
+import { isNative } from './native';
+import { toast } from './toasts';
+
+const native = () => import('../native/speech');
 
 let voice: SpeechSynthesisVoice | null = null;
 let voicesChecked = false;
 
-export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
+const webSpeech = !isNative && typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+export const canSpeak = isNative || webSpeech;
 
 function pickVoice() {
-  if (!canSpeak) return;
+  if (!webSpeech) return;
   const voices = speechSynthesis.getVoices();
   voice =
     voices.find((v) => /^zh[-_](CN|Hans)/i.test(v.lang)) ?? voices.find((v) => /^zh/i.test(v.lang)) ?? null;
   if (voices.length) voicesChecked = true;
 }
 
-if (canSpeak) {
+if (webSpeech) {
   pickVoice();
   speechSynthesis.addEventListener?.('voiceschanged', pickVoice);
 }
@@ -21,11 +29,41 @@ if (canSpeak) {
 /** true cuando el dispositivo ya informó sus voces y ninguna es china. */
 export function missingChineseVoice(): boolean {
   pickVoice();
-  return canSpeak && voicesChecked && !voice;
+  return webSpeech && voicesChecked && !voice;
 }
 
+/** Igual que missingChineseVoice, también en la APK (allá la respuesta tarda un momento). */
+export async function checkChineseVoice(): Promise<boolean> {
+  if (!isNative) return missingChineseVoice();
+  try {
+    return await (await native()).chineseVoiceMissing();
+  } catch {
+    return false;
+  }
+}
+
+/** En la APK se puede abrir la pantalla de Android para descargar la voz en chino. */
+export const canInstallVoice = isNative;
+
+export function installVoice(): void {
+  if (isNative) native().then((m) => m.installVoice()).catch(() => undefined);
+}
+
+let voiceToastShown = false;
+
 export function speak(text: string, rate = 0.85): void {
-  if (!canSpeak) return;
+  if (isNative) {
+    native()
+      .then((m) => m.speak(text, rate))
+      .catch(async () => {
+        // Lo más común es que falte la voz en chino. Se avisa una sola vez.
+        if (voiceToastShown || !(await checkChineseVoice())) return;
+        voiceToastShown = true;
+        toast('Falta la voz en chino en este celular. En la pestaña Hablar puedes instalarla.');
+      });
+    return;
+  }
+  if (!webSpeech) return;
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -38,7 +76,7 @@ export function speak(text: string, rate = 0.85): void {
   }
 }
 
-// --- Reconocimiento de voz (Chrome en Android y computador, Safari en iPhone) ---
+// --- Reconocimiento de voz (Chrome en Android y computador, Safari en iPhone, y la APK) ---
 
 type RecognitionCtor = new () => {
   lang: string;
@@ -58,7 +96,7 @@ function recognitionCtor(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export const canListen = recognitionCtor() !== null;
+export const canListen = isNative || recognitionCtor() !== null;
 
 const ERRORS: Record<string, string> = {
   'not-allowed': 'No hay permiso para usar el micrófono. Actívalo en los ajustes del navegador para este sitio.',
@@ -67,10 +105,29 @@ const ERRORS: Record<string, string> = {
   'audio-capture': 'No se encontró un micrófono.',
   network: 'El reconocimiento de voz necesita internet. Revisa tu conexión.',
   'language-not-supported': 'Tu navegador no reconoce chino. Usa el dictado del teclado.',
+  // Cancelaste tú: no es un error que haya que mostrar.
+  aborted: '',
 };
 
-/** Escucha una frase en chino y devuelve lo que entendió. Rechaza con un mensaje en español. */
+/** Escucha una frase en chino y devuelve lo que entendió. Rechaza con un mensaje en español (vacío si se canceló). */
 export function listenOnce(): { promise: Promise<string>; stop: () => void } {
+  if (isNative) {
+    let cancelled = false;
+    let stopNative = () => {};
+    const promise = native().then((m) => {
+      if (cancelled) throw new Error('');
+      const h = m.listenOnce();
+      stopNative = h.stop;
+      return h.promise;
+    });
+    return {
+      promise,
+      stop: () => {
+        cancelled = true;
+        stopNative();
+      },
+    };
+  }
   const Ctor = recognitionCtor();
   if (!Ctor) return { promise: Promise.reject(new Error('Este navegador no tiene reconocimiento de voz.')), stop: () => {} };
   const rec = new Ctor();

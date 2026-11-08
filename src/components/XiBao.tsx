@@ -3,7 +3,7 @@
 // usa --accent, así que cambia con el tema de color. Las animaciones están en styles.css.
 import type { Mood } from '../lib/mascot';
 
-/** face: solo la cabeza (para íconos pequeños, como la imagen del recordatorio). */
+/** face: solo la cabeza y la bufanda, sin cuerpo (para íconos: el de la app y la imagen del recordatorio). */
 type Props = { mood: Mood; size?: number; face?: boolean; className?: string };
 
 /** Brazo como trazo grueso con borde (el borde solo se nota en modo oscuro). */
@@ -35,26 +35,30 @@ export function XiBao({ mood, size = 96, face = false, className = '' }: Props) 
       aria-hidden="true"
       focusable="false"
     >
-      <ellipse className="xb-shadow" cx="60" cy="113" rx="29" ry="4.5" />
+      {!face && <ellipse className="xb-shadow" cx="60" cy="113" rx="29" ry="4.5" />}
       <g className="xb-all">
         {/* Orejas */}
         <circle className="xb-ink" cx="33" cy="19" r="11" />
         <circle className="xb-ink" cx="87" cy="19" r="11" />
 
-        {/* Cuerpo y patas */}
-        <path className="xb-fur" d="M28 90 C28 71 42 63 60 63 C78 63 92 71 92 90 C92 104 79 111 60 111 C41 111 28 104 28 90 Z" />
-        <ellipse className="xb-ink" cx="43" cy="106.5" rx="12" ry="7.5" />
-        <ellipse className="xb-ink" cx="77" cy="106.5" rx="12" ry="7.5" />
-        <ellipse className="xb-pad" cx="43" cy="107" rx="5" ry="3.2" />
-        <ellipse className="xb-pad" cx="77" cy="107" rx="5" ry="3.2" />
+        {!face && (
+          <>
+            {/* Cuerpo y patas */}
+            <path className="xb-fur" d="M28 90 C28 71 42 63 60 63 C78 63 92 71 92 90 C92 104 79 111 60 111 C41 111 28 104 28 90 Z" />
+            <ellipse className="xb-ink" cx="43" cy="106.5" rx="12" ry="7.5" />
+            <ellipse className="xb-ink" cx="77" cy="106.5" rx="12" ry="7.5" />
+            <ellipse className="xb-pad" cx="43" cy="107" rx="5" ry="3.2" />
+            <ellipse className="xb-pad" cx="77" cy="107" rx="5" ry="3.2" />
 
-        {/* Brazos */}
-        <Arm d={leftUp ? ARM_UP_L : ARM_REST_L} className={leftUp ? 'xb-arm-l xb-up' : 'xb-arm-l'} />
-        <Arm d={rightUp ? ARM_UP_R : ARM_REST_R} className={`xb-arm-r${rightUp ? ' xb-up' : ''}${mood === 'hola' ? ' xb-wave' : ''}`} />
+            {/* Brazos */}
+            <Arm d={leftUp ? ARM_UP_L : ARM_REST_L} className={leftUp ? 'xb-arm-l xb-up' : 'xb-arm-l'} />
+            <Arm d={rightUp ? ARM_UP_R : ARM_REST_R} className={`xb-arm-r${rightUp ? ' xb-up' : ''}${mood === 'hola' ? ' xb-wave' : ''}`} />
+          </>
+        )}
 
         {/* Bufanda (color del tema) */}
         <path className="xb-scarf" d="M35 70 Q60 81 85 70 L86 77 Q60 89 34 77 Z" />
-        <path className="xb-scarf" d="M68 79 L77 94 L70.5 96 L63 81 Z" />
+        {!face && <path className="xb-scarf" d="M68 79 L77 94 L70.5 96 L63 81 Z" />}
 
         {/* Cabeza */}
         <circle className="xb-fur" cx="60" cy="44" r="33" />

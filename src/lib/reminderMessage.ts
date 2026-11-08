@@ -77,7 +77,7 @@ export function reminderNotification(
   const options: NotificationOptions & { renotify?: boolean } = {
     body: m.body,
     lang: 'es',
-    // La cara de Xi Bao (scripts/mascot-images.mjs); la insignia de la barra sigue siendo el 汉.
+    // La cara de Xi Bao, y su silueta como insignia de la barra (scripts/icons.mjs).
     icon: new URL('xibao-192.png', scope).href,
     badge: new URL('badge-96.png', scope).href,
     // Con la misma etiqueta, el aviso de hoy reemplaza al de ayer en lugar de acumularse…

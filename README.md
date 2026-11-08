@@ -15,7 +15,7 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
   - En la tienda hay protectores de racha y temas de color.
 - Progreso guardado en el dispositivo, con opción de descargarlo y cargarlo en otro.
 
-Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200) y el HSK 3 (500)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
+Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200), el HSK 3 (500) y el HSK 4 (1000)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
 
 ## Uso
 

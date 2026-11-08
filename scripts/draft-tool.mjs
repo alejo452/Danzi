@@ -8,6 +8,9 @@
 //       Copia al borrador un lote escrito en <archivo>, una palabra por línea y los campos separados por
 //       tabuladores: id, significado, frase en chino, pinyin de la frase, traducción de la frase.
 //       Las líneas vacías y las que empiezan por # se ignoran.
+//   node scripts/draft-tool.mjs publicar <nivel>
+//       Cuando el borrador está completo, lo pasa a src/data/hsk/level-<nivel>.json con el formato de los
+//       otros niveles (una palabra por línea) y borra el borrador.
 //
 // Después de aplicar un lote, npm test revisa las entradas completadas (tests/drafts.test.ts).
 import fs from 'node:fs';
@@ -15,7 +18,17 @@ import path from 'node:path';
 
 const DIR = path.join('data-source', 'drafts');
 const draftPath = (level) => path.join(DIR, `level-${level}.json`);
+const publishedPath = (level) => path.join('src', 'data', 'hsk', `level-${level}.json`);
 const pending = (w) => !w.es || !w.ex.zh || !w.ex.py || !w.ex.es;
+
+/** Una palabra por línea, con espacios después de «:» y «,», como los niveles ya publicados. */
+function publishedJson(words) {
+  const j = JSON.stringify;
+  const line = (w) =>
+    `{"id": ${w.id}, "hanzi": ${j(w.hanzi)}, "pinyin": ${j(w.pinyin)}, "pos": ${j(w.pos)}, "es": ${j(w.es)}, ` +
+    `"ex": {"zh": ${j(w.ex.zh)}, "py": ${j(w.ex.py)}, "es": ${j(w.ex.es)}}}`;
+  return '[\n' + words.map((w) => '  ' + line(w)).join(',\n') + '\n]\n';
+}
 
 function load(level) {
   const file = draftPath(level);
@@ -57,8 +70,16 @@ try {
     }
     save(level, words);
     console.log(`Aplicadas ${count} palabras. Faltan ${words.filter(pending).length} de ${words.length}.`);
+  } else if (cmd === 'publicar' && level) {
+    const words = load(level);
+    const left = words.filter(pending).length;
+    if (left) throw new Error(`Faltan ${left} palabras del nivel ${level}. El nivel solo se publica completo.`);
+    if (fs.existsSync(publishedPath(level))) throw new Error(`Ya existe ${publishedPath(level)}.`);
+    fs.writeFileSync(publishedPath(level), publishedJson(words));
+    fs.rmSync(draftPath(level));
+    console.log(`Publicado ${publishedPath(level)} con ${words.length} palabras y borrado el borrador. Ahora ejecuta npm test.`);
   } else {
-    throw new Error('Uso: node scripts/draft-tool.mjs estado | siguientes <nivel> [cantidad] | aplicar <nivel> <archivo>');
+    throw new Error('Uso: node scripts/draft-tool.mjs estado | siguientes <nivel> [cantidad] | aplicar <nivel> <archivo> | publicar <nivel>');
   }
 } catch (e) {
   console.error(e.message);

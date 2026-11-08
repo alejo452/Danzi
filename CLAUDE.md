@@ -9,6 +9,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 - `npm run check`: revisión de tipos.
 - `npm run build`: build de producción (copia antes los datos de trazos a `public/strokes/`).
 - `npm run data:skeleton -- <nivel>`: crea el borrador de un nivel desde el temario oficial.
+- `node scripts/draft-tool.mjs`: completa un borrador por lotes y lo publica cuando está completo (`estado`, `siguientes`, `aplicar`, `publicar`; ver «Cómo agregar un nivel»).
 - `npm run android:sync`: build de la web y copia a la app de Android (`cap sync android`).
 - APK: en `android/`, `./gradlew assembleDebug` compila «Danzi Pruebas» y `./gradlew assembleRelease` la normal (sale firmada solo si `DANZI_FIRMA_ANDROID` está definido). Necesita Java 21 y el SDK de Android en `ANDROID_HOME`. En la nube, el entorno «Danzi» permite `dl.google.com`; si el SDK no está, descarga `cmdline-tools` de `https://dl.google.com/android/repository/` en `$ANDROID_HOME/cmdline-tools/latest` y ejecuta `sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"`.
 - `npm run icons`: dibuja todos los íconos (web, Android y recordatorios) a partir de Xi Bao (`scripts/icons.mjs`, necesita Playwright).
@@ -76,6 +77,8 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 
 1. Ejecuta `npm run data:skeleton -- 2`. Esto crea `data-source/drafts/level-2.json` con todas las palabras y los campos en blanco.
 2. Completa `es` y `ex` por lotes de unas 50 palabras. Así puedes revisar y hacer commit del borrador por partes.
+   - `node scripts/draft-tool.mjs siguientes 2 50` lista las siguientes palabras sin completar. Escribe el lote en un archivo, una palabra por línea con los campos separados por tabuladores (id, significado, frase, pinyin de la frase, traducción), y cópialo al borrador con `node scripts/draft-tool.mjs aplicar 2 <archivo>`. `estado` dice cuántas faltan.
+   - `tests/drafts.test.ts` revisa las entradas completadas con las mismas reglas de `tests/data.test.ts`, y además que la frase solo use caracteres de palabras del mismo nivel o de niveles anteriores. Los únicos caracteres que se aceptan fuera de esa lista son los de nombres propios colombianos, en `PROPER_NAME_CHARS`.
    - **Significado:** lo más corto y claro posible. Separa acepciones con coma y usos distintos con punto y coma, por ejemplo `"querer; pensar; extrañar"`. En partículas y clasificadores, explica la función: `"clasificador de animales"`.
    - **Ejemplo:** una frase corta y natural que use la palabra.
      - Solo debe usar vocabulario del mismo nivel o de niveles anteriores, salvo nombres propios.
@@ -87,7 +90,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
      - Escribe el erhua unido (`nǎr`). Si la prueba no lo reconoce, agrega el carácter anterior a `ERHUA_BEFORE` en `src/lib/compare.ts` (así se agregaron 孩 para 男孩儿 y 天 para 聊天儿). 儿 seguido de 子 no cuenta como erhua (今天儿子 es jīntiān érzi).
      - La prueba compara con `pinyin-pro`, que lee mal algunos caracteres, por ejemplo 地 como partícula (`mànmàn de`), 得 como «tener que» (`děi`) o 还 como «devolver» (`huán`). Escribe la lectura correcta; la prueba la acepta por `ALSO_READ` en `tests/syllables.ts`, que tiene la lista completa. Si encuentras otro caso así, agrégalo ahí en lugar de escribir un pinyin incorrecto.
    - **Traducción:** español natural de Colombia, no una traducción palabra por palabra.
-3. Cuando el borrador esté completo, muévelo a `src/data/hsk/level-2.json`, ejecuta `npm test` y corrige lo que marquen las pruebas.
+3. Cuando el borrador esté completo, `node scripts/draft-tool.mjs publicar 2` lo pasa a `src/data/hsk/level-2.json` (una palabra por línea, como los otros niveles) y borra el borrador. Luego ejecuta `npm test` y corrige lo que marquen las pruebas.
 4. El nivel aparece solo en Ajustes. No hay que tocar código.
 
 ## Interfaz

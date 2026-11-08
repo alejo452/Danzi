@@ -19,8 +19,9 @@ export function letters(s: string): string {
  * - 得 como «tener que» se lee děi (我得走了 wǒ děi zǒu le); pinyin-pro da dé.
  * - 还 como «devolver» se lee huán (还书 huán shū); pinyin-pro da hái.
  * - 重 como «de nuevo» se lee chóng (重写 chóngxiě); pinyin-pro da zhòng.
+ * - 长 como «crecer, tener aspecto» se lee zhǎng (长得很像 zhǎng de hěn xiàng); pinyin-pro a veces da cháng.
  */
-export const ALSO_READ: Record<string, string[]> = { 地: ['de'], 得: ['dei'], 还: ['huan'], 重: ['chong'] };
+export const ALSO_READ: Record<string, string[]> = { 地: ['de'], 得: ['dei'], 还: ['huan'], 重: ['chong'], 长: ['zhang'] };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */
 export function autoSyllables(zh: string): string[][] {

@@ -28,6 +28,7 @@ export function letters(s: string): string {
  * - 似 en 类似 se lee sì (类似的问题 lèisì de wèntí); delante de 的, pinyin-pro da shì, como en 似的.
  * - 盛 como «servir (comida)» se lee chéng (盛一碗汤 chéng yì wǎn tāng); pinyin-pro da shèng.
  * - 都 en 大都 («en su mayoría») va como dàdū en el temario; pinyin-pro da dōu.
+ * - 落 como «dejar olvidado» se lee là (落在出租车上 là zài chūzūchē shang); pinyin-pro da luò.
  */
 export const ALSO_READ: Record<string, string[]> = {
   地: ['de'],
@@ -43,6 +44,7 @@ export const ALSO_READ: Record<string, string[]> = {
   似: ['si'],
   盛: ['cheng'],
   都: ['du'],
+  落: ['la'],
 };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */

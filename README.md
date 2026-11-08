@@ -2,6 +2,7 @@
 
 App para aprender chino mandarín desde el español, siguiendo el temario oficial del **HSK 3.0**. Funciona sin internet. En Android se instala como app (APK); en cualquier celular, también desde el navegador.
 
+- **Xi Bao (喜宝)**, el panda de Danzi: te saluda, te anima según cómo va tu día y, si lo tocas, te dice una frase en chino en voz alta, con su pinyin y su traducción. También te escribe el recordatorio.
 - **Tarjetas** con repaso espaciado (FSRS, el algoritmo de Anki): carácter al frente; pinyin, significado y ejemplo al voltear.
 - **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado. Los trazos se descargan al instalar la app, así que también funciona sin internet.
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.

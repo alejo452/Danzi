@@ -24,6 +24,11 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - `src/lib/rewards.ts`: funciones puras de la meta diaria y el sobre rojo (红包), los protectores de racha, la mejor racha, los sellos (印章), la tienda y el calendario.
   - `src/views/Rewards.tsx`: la vista Premios (`#premios`), con el saldo, la tienda (protectores y temas) y los sellos.
   - Componentes: `StreakCalendar` (calendario de racha, se abre al tocar la racha en Inicio), `Envelope` (sobre rojo), `Celebrations` (sellos nuevos y protector usado), `CoinCount`, `GoalRing`, `SealMark`, `Sheet` (hoja modal), `Confetti` y `Toasts`.
+- Xi Bao (喜宝, «tesoro alegre»), el panda de la app:
+  - `src/lib/mascot.ts`: sus frases (chino, pinyin con tonos y español) y qué dice en Inicio según el día (`homeLine`: primera vez, racha en riesgo desde las 5 p. m., meta cumplida, noche…). Funciones puras.
+  - `src/components/XiBao.tsx`: el dibujo SVG, con seis estados de ánimo (`hola`, `listo`, `animado`, `feliz`, `preocupado`, `dormido`). `face` muestra solo la cabeza.
+  - `src/components/MascotCard.tsx`: `MascotCard` (Inicio: globo con lo que dice; al tocarlo, una frase en chino en voz alta) y `MascotSays` (pantallas de «listo» de Repasar, Escribir y Hablar).
+  - `scripts/mascot-images.mjs`: dibuja su cara para los recordatorios (`public/xibao-192.png` y `android/app/src/main/res/drawable-nodpi/xibao_aviso.png`).
 - `src/lib/speech.ts`: lectura en voz alta y reconocimiento de voz en chino.
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
@@ -92,6 +97,10 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 - Los temas de color (`:root[data-accent="…"]`) solo cambian `--accent`, `--on-accent`, `--grid` y `--bar`. Si agregas uno, defínelo en claro y en oscuro, con contraste AA (4,5:1) para el texto y los botones.
 - Animaciones: todas están en `src/styles.css` y se apagan con `prefers-reduced-motion`. Ningún cambio de estado puede depender de que una animación termine. Las celebraciones (sellos, protector usado) solo aparecen en Inicio y en Premios, nunca en medio de un repaso.
 - Fuentes: Space Grotesk para títulos, Inter para texto y Noto Sans SC para caracteres. Pon `lang="zh-Hans"` en todo texto en chino.
+- Xi Bao:
+  - Es amigable y anima; nunca regaña ni hace sentir mal. Habla en español de Colombia, tuteando, y cada cosa que dice lleva una frase corta en chino con su pinyin y su traducción.
+  - Las frases nuevas van en `src/lib/mascot.ts`. `tests/mascot.test.ts` revisa su pinyin sílaba por sílaba, con tonos, contra `pinyin-pro`. Si un carácter va en tono neutro y `pinyin-pro` le pone tono (意思 yìsi, 朋友 péngyou), agrégalo a `NEUTRAL_OK` en esa prueba.
+  - Sus colores son los tokens `--panda-*` (con versión oscura) y su bufanda usa `--accent`, así que cambia con el tema. Si cambias el dibujo, ejecuta `node scripts/mascot-images.mjs` para actualizar las imágenes del recordatorio.
 - En la APK: no hay service worker, «Descargar» usa `SaveFile`, «Cargar archivo» no filtra por tipo (Android a veces guarda el JSON con otro tipo) y las secciones que solo aplican a la web (como «Escritura sin internet») se esconden con `isNative`.
 - Accesibilidad:
   - Usa botones reales.

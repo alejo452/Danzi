@@ -16,6 +16,8 @@ import { reminderMessage } from '../lib/reminderMessage';
 import { getProgress } from '../lib/useProgress';
 
 const CHANNEL = 'recordatorio';
+/** La cara de Xi Bao a la derecha del aviso: android/app/src/main/res/drawable-nodpi/xibao_aviso.png. */
+const LARGE_ICON = 'xibao_aviso';
 
 export type NotificationPermission = 'granted' | 'denied' | 'prompt';
 
@@ -102,6 +104,7 @@ export async function syncReminders(): Promise<PlannedReminder[] | null> {
       schedule: { at: r.at, allowWhileIdle: true },
       isExactNotification: exact,
       autoCancel: true,
+      largeIcon: LARGE_ICON,
       extra: { view: 'repasar' },
     })),
   });
@@ -153,6 +156,7 @@ export async function testLocalReminder(): Promise<'ok' | 'denied'> {
         channelId: CHANNEL,
         isExactNotification: false,
         autoCancel: true,
+        largeIcon: LARGE_ICON,
         extra: { view: 'repasar' },
       },
     ],

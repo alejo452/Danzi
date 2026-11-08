@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { CoinCount } from '../components/CoinCount';
 import { IconMic, IconSpeaker } from '../components/Icons';
+import { MascotSays } from '../components/MascotCard';
 import type { Word } from '../data/levels';
 import type { Comparison } from '../lib/compare';
 import { plural } from '../lib/dates';
+import { PHRASES } from '../lib/mascot';
 import { recordSpeaking, type Progress } from '../lib/progress';
 import { canInstallVoice, canListen, canSpeak, checkChineseVoice, installVoice, listenOnce, speak } from '../lib/speech';
 import { eligibleForTones, shuffle, toneOptions } from '../lib/tones';
@@ -82,6 +84,10 @@ function Tones({ seen, all }: { seen: Word[]; all: Word[] }) {
     const s = round.score;
     return (
       <div className="panel done">
+        <MascotSays
+          mood={s >= 8 ? 'feliz' : s >= 5 ? 'animado' : 'listo'}
+          phrase={s >= 8 ? PHRASES.genial : s >= 5 ? PHRASES.animo : PHRASES.sinAfan}
+        />
         <h2>Acertaste {s} de {round.items.length}</h2>
         <p>
           {s >= 8 ? 'Tu oído para los tonos va muy bien.' : s >= 5 ? 'Vas bien. Repite la ronda para afinar el oído.' : 'Los tonos cuestan al principio. Escucha cada palabra varias veces antes de elegir.'}

@@ -30,6 +30,7 @@ export function letters(s: string): string {
  * - 都 en 大都 («en su mayoría») va como dàdū en el temario; pinyin-pro da dōu.
  * - 落 como «dejar olvidado» se lee là (落在出租车上 là zài chūzūchē shang); pinyin-pro da luò.
  * - 率 como «encabezar» se lee shuài (率先 shuàixiān); pinyin-pro da lǜ, como en 效率.
+ * - 粘 como «pegar» se lee zhān (粘贴 zhāntiē); pinyin-pro da nián.
  */
 export const ALSO_READ: Record<string, string[]> = {
   地: ['de'],
@@ -47,6 +48,7 @@ export const ALSO_READ: Record<string, string[]> = {
   都: ['du'],
   落: ['la'],
   率: ['shuai'],
+  粘: ['zhan'],
 };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */

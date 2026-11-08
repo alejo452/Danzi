@@ -24,7 +24,7 @@ export function letters(s: string): string {
  * - 血 suelto, en el habla, se lee xiě (手上有血 shǒu shang yǒu xiě); pinyin-pro da xuè.
  * - 着 como «lograr» se lee zháo (睡不着 shuì bu zháo); pinyin-pro da zhe.
  * - 系 como «abrochar, amarrar» se lee jì (系安全带 jì ānquándài); pinyin-pro da xì.
- * - 调 como «trasladar» se lee diào (调到麦德林 diào dào Màidélín); pinyin-pro da tiáo.
+ * - 调 se lee tiáo («ajustar», 空调 kōngtiáo) o diào («trasladar», 调到 diào dào); pinyin-pro a veces da la otra lectura.
  * - 似 en 类似 se lee sì (类似的问题 lèisì de wèntí); delante de 的, pinyin-pro da shì, como en 似的.
  */
 export const ALSO_READ: Record<string, string[]> = {
@@ -37,7 +37,7 @@ export const ALSO_READ: Record<string, string[]> = {
   血: ['xie'],
   着: ['zhao'],
   系: ['ji'],
-  调: ['diao'],
+  调: ['diao', 'tiao'],
   似: ['si'],
 };
 

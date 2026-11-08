@@ -91,8 +91,11 @@ jobs:
       - name: Comprobar la firma
         run: |
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
-          got="$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          # Según la versión, apksigner escribe «Signer #1 certificate SHA-256 digest: …» o
+          # «V2 Signer: certificate SHA-256 digest: …». Todas las firmas deben tener la misma huella.
+          got="$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | sed -n 's/^.*certificate SHA-256 digest: //p' | sort -u)"
           want="$(tr -d '[:space:]' < android/firma-sha256.txt)"
+          echo "Huella de la APK: ${got:-ninguna}. Huella esperada: $want"
           if [ -z "$got" ] || [ "$got" != "$want" ]; then
             echo "::error::La APK no quedó firmada con la llave de siempre (android/firma-sha256.txt). Con otra llave, Android no deja instalarla encima de la anterior. Revisa el secreto DANZI_FIRMA_ANDROID."
             exit 1

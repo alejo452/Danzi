@@ -1,5 +1,6 @@
 // Los workflows de GitHub Actions se publican sin pasar por el build: si un archivo tiene un error
 // de formato, GitHub no lo puede leer y deja de correr (por ejemplo, dejan de salir los recordatorios).
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
@@ -87,6 +88,21 @@ describe('workflow android.yml: firma de la APK', () => {
   it('la versión de pruebas de los pull requests no recibe secretos', () => {
     expect(jobs.pruebas?.if).toContain("github.event_name == 'pull_request'");
     expect((jobs.pruebas?.steps ?? []).flatMap((st) => secretNames(st.env))).toEqual([]);
+  });
+
+  it('lee la huella con cualquier versión de apksigner', () => {
+    // build-tools 36 escribe «Signer #1 certificate SHA-256 digest: …»; build-tools 37, «V2 Signer: certificate …».
+    const run = (jobs.publicar?.steps ?? []).find((st) => st.run?.includes('firma-sha256.txt'))?.run ?? '';
+    const sed = run.match(/sed -n '([^']+)'/)?.[1];
+    expect(sed, 'falta el sed que lee la huella').toBeTruthy();
+    const digest = 'ab'.repeat(32);
+    for (const out of [
+      `Signer #1 certificate DN: CN=Danzi\nSigner #1 certificate SHA-256 digest: ${digest}\nSigner #1 certificate SHA-1 digest: 00\n`,
+      `V2 Signer: certificate DN: CN=Danzi\nV2 Signer: certificate SHA-256 digest: ${digest}\nV3 Signer: certificate SHA-256 digest: ${digest}\n`,
+    ]) {
+      const found = execFileSync('sed', ['-n', sed!], { input: out, encoding: 'utf8' }).split('\n').filter(Boolean);
+      expect([...new Set(found)]).toEqual([digest]);
+    }
   });
 
   it('comprueba la huella de la firma antes de publicar', () => {

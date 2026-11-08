@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fondo de la app (el token bg de src/styles.css). Se ve mientras carga la página y detrás de las barras del sistema. -->
+    <color name="app_background">#F3F4F6</color>
+</resources>

@@ -49,10 +49,11 @@ for (const file of files) {
   });
 }
 
+const secretNames = (env?: Record<string, string>) =>
+  Object.values(env ?? {}).flatMap((v) => [...String(v).matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map((m) => m[1]));
+
 describe('workflow recordatorios.yml: secretos', () => {
   const wf = parse(fs.readFileSync(path.join(dir, 'recordatorios.yml'), 'utf8')) as Workflow;
-  const secretNames = (env?: Record<string, string>) =>
-    Object.values(env ?? {}).flatMap((v) => [...String(v).matchAll(/secrets\.([A-Za-z0-9_]+)/g)].map((m) => m[1]));
 
   it('solo usa los secretos de los recordatorios', () => {
     const used = Object.values(wf.jobs ?? {}).flatMap((job) => [...secretNames(job.env), ...(job.steps ?? []).flatMap((st) => secretNames(st.env))]);
@@ -65,5 +66,34 @@ describe('workflow recordatorios.yml: secretos', () => {
       expect(secretNames(job.env), `${id}: secretos en el env del trabajo`).toEqual([]);
       for (const st of job.steps ?? []) if (st.run?.includes('npm ci')) expect(secretNames(st.env), `${id}: secretos en npm ci`).toEqual([]);
     }
+  });
+});
+
+describe('workflow android.yml: firma de la APK', () => {
+  const wf = parse(fs.readFileSync(path.join(dir, 'android.yml'), 'utf8')) as Workflow;
+  const jobs = wf.jobs ?? {};
+
+  it('solo usa la llave de firma, y solo en el paso que compila la APK normal', () => {
+    for (const [id, job] of Object.entries(jobs)) {
+      expect(secretNames(job.env), `${id}: secretos en el env del trabajo`).toEqual([]);
+      for (const st of job.steps ?? []) {
+        const names = secretNames(st.env);
+        for (const name of names) expect(name, `${id}: secreto inesperado`).toBe('DANZI_FIRMA_ANDROID');
+        if (names.length) expect(st.run, `${id}: la llave llega a un paso que no compila la APK`).toMatch(/gradlew assembleRelease/);
+      }
+    }
+  });
+
+  it('la versión de pruebas de los pull requests no recibe secretos', () => {
+    expect(jobs.pruebas?.if).toContain("github.event_name == 'pull_request'");
+    expect((jobs.pruebas?.steps ?? []).flatMap((st) => secretNames(st.env))).toEqual([]);
+  });
+
+  it('comprueba la huella de la firma antes de publicar', () => {
+    const steps = jobs.publicar?.steps ?? [];
+    const check = steps.findIndex((st) => st.run?.includes('firma-sha256.txt'));
+    const publish = steps.findIndex((st) => st.run?.includes('gh release create'));
+    expect(check, 'falta el paso que compara la huella').toBeGreaterThan(-1);
+    expect(publish, 'publica antes de comprobar la huella').toBeGreaterThan(check);
   });
 });

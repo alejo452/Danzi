@@ -1,0 +1,95 @@
+apply plugin: 'com.android.application'
+
+// Versión: el workflow de GitHub la pasa con -PversionCode=… -PversionName=…
+// versionCode tiene que subir en cada versión: Android no instala encima una versión con un número menor.
+def danziVersionCode = (project.findProperty('versionCode') ?: '1').toString().toInteger()
+def danziVersionName = (project.findProperty('versionName') ?: 'dev').toString()
+
+// Firma de la versión normal. La llave llega en la variable de entorno DANZI_FIRMA_ANDROID (en GitHub, el
+// secreto del mismo nombre), con el formato de scripts/android-signing.mjs: «danzifirma1.» + base64url(JSON
+// { keystore, password }). Todas las versiones van firmadas con la misma llave: si cambia, Android no deja
+// actualizar la app, y desinstalarla borra el progreso. Su huella está en android/firma-sha256.txt.
+def signingCode = System.getenv('DANZI_FIRMA_ANDROID')?.trim()
+def keystoreFile = null
+def keystorePassword = null
+if (signingCode) {
+    def prefix = 'danzifirma1.'
+    if (!signingCode.startsWith(prefix)) {
+        throw new GradleException("DANZI_FIRMA_ANDROID no es un código de firma de Danzi: debe empezar por ${prefix}")
+    }
+    def data = new groovy.json.JsonSlurper().parseText(new String(Base64.getUrlDecoder().decode(signingCode.substring(prefix.length())), 'UTF-8'))
+    keystoreFile = new File(layout.buildDirectory.get().asFile, 'firma/danzi.p12')
+    keystoreFile.parentFile.mkdirs()
+    keystoreFile.bytes = Base64.getDecoder().decode(data.keystore as String)
+    keystorePassword = data.password as String
+}
+
+android {
+    namespace = "io.github.alejo452.danzi"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.alejo452.danzi"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode danziVersionCode
+        versionName danziVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (keystoreFile) {
+                storeFile keystoreFile
+                storePassword keystorePassword
+                keyAlias 'danzi'
+                keyPassword keystorePassword
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            // «Danzi Pruebas»: se instala al lado de la app normal, con su propio progreso.
+            applicationIdSuffix '.pruebas'
+            versionNameSuffix '-pruebas'
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Sin llave (por ejemplo, al compilar en tu computador) la APK sale sin firmar.
+            signingConfig keystoreFile ? signingConfigs.release : null
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

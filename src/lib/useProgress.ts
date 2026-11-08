@@ -61,11 +61,13 @@ export function useProgressLoaded(): boolean {
 }
 
 // Guarda de inmediato si la app pasa a segundo plano (en el celular puede cerrarse sin aviso).
+// En la APK, Capacitor avisa con el evento «pause», porque visibilitychange puede no llegar.
 if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && loaded) {
-      clearTimeout(saveTimer);
-      set(KEY, state).catch(() => {});
-    }
-  });
+  const saveNow = () => {
+    if (!loaded) return;
+    clearTimeout(saveTimer);
+    set(KEY, state).catch(() => {});
+  };
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && saveNow());
+  document.addEventListener('pause', saveNow);
 }

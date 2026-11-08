@@ -7,6 +7,19 @@ const base = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base,
+  build: {
+    rollupOptions: {
+      output: {
+        // El código de la APK de Android (src/native y Capacitor) solo se importa de forma dinámica, así que
+        // queda en archivos aparte. Se llaman native-*.js para que el service worker de la versión web
+        // no los guarde (globIgnores). No usar manualChunks: arrastra módulos compartidos a esos archivos.
+        chunkFileNames: (chunk) =>
+          chunk.moduleIds.some((id) => /[\\/]src[\\/]native[\\/]|[\\/]node_modules[\\/]@capacitor/.test(id))
+            ? 'assets/native-[name]-[hash].js'
+            : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -37,6 +50,7 @@ export default defineConfig({
         // Los trazos de todos los caracteres (strokes/*.json) se descargan al instalar la app,
         // para que la escritura funcione sin internet desde el primer día.
         globPatterns: ['**/*.{js,css,html,svg,png}', 'strokes/*.json'],
+        globIgnores: ['**/node_modules/**/*', 'assets/native-*.js'],
         // Un solo archivo clásico, sin módulos: así lo cargan todos los navegadores.
         rollupFormat: 'iife',
       },

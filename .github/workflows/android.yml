@@ -1,0 +1,112 @@
+name: APK de Android
+
+# Compila la app para Android (Capacitor), con la misma app web que se publica en GitHub Pages.
+# - En cada push a main, la APK normal («Danzi») se firma con la llave del secreto DANZI_FIRMA_ANDROID
+#   y se publica en Releases. Enlace fijo para descargarla en el celular:
+#   https://github.com/<usuario>/<repo>/releases/latest/download/danzi.apk
+# - En cada pull request se compila la versión de pruebas («Danzi Pruebas»), que se instala al lado de la
+#   normal con su propio progreso. Queda como artefacto del workflow, para probarla antes de fusionar.
+# La llave solo llega al paso que compila la APK normal. Antes de publicar se comprueba que la APK quedó
+# firmada con la llave de siempre (android/firma-sha256.txt): con otra, Android no la deja instalar encima.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Compilar Danzi Pruebas
+        working-directory: android
+        env:
+          N: ${{ github.run_number }}
+        run: ./gradlew assembleDebug -PversionCode="$N" -PversionName="1.$N" --console=plain
+      - run: mv android/app/build/outputs/apk/debug/app-debug.apk danzi-pruebas.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: danzi-pruebas
+          path: danzi-pruebas.apk
+          retention-days: 14
+
+  publicar:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Compilar Danzi firmada
+        working-directory: android
+        env:
+          N: ${{ github.run_number }}
+          DANZI_FIRMA_ANDROID: ${{ secrets.DANZI_FIRMA_ANDROID }}
+        run: |
+          if [ -z "$DANZI_FIRMA_ANDROID" ]; then
+            echo "::error::Falta el secreto DANZI_FIRMA_ANDROID. Créalo en Settings › Secrets and variables › Actions con el código de la llave de firma (README, sección «App para Android»)."
+            exit 1
+          fi
+          ./gradlew assembleRelease -PversionCode="$N" -PversionName="1.$N" --console=plain
+          rm -rf app/build/firma
+      - name: Comprobar la firma
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          got="$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          want="$(tr -d '[:space:]' < android/firma-sha256.txt)"
+          if [ -z "$got" ] || [ "$got" != "$want" ]; then
+            echo "::error::La APK no quedó firmada con la llave de siempre (android/firma-sha256.txt). Con otra llave, Android no deja instalarla encima de la anterior. Revisa el secreto DANZI_FIRMA_ANDROID."
+            exit 1
+          fi
+          mv android/app/build/outputs/apk/release/app-release.apk danzi.apk
+      - name: Publicar en Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ github.run_number }}
+        run: |
+          # En un merge, la segunda línea del mensaje es el título del pull request.
+          cambios="$(git log -1 --format=%b | sed -n '1p')"
+          [ -n "$cambios" ] || cambios="$(git log -1 --format=%s)"
+          notas="Para instalarla o actualizarla desde el celular, toca danzi.apk aquí abajo. Si ya tienes Danzi, se instala encima sin perder el progreso. Nunca la desinstales: desinstalarla borra el progreso.
+
+          Cambios: ${cambios}"
+          gh release create "android-$N" danzi.apk --target "$GITHUB_SHA" --latest --title "Danzi para Android · versión 1.$N" --notes "$notas"

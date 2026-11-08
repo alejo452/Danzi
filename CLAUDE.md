@@ -11,7 +11,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 - `npm run data:skeleton -- <nivel>`: crea el borrador de un nivel desde el temario oficial.
 - `npm run android:sync`: build de la web y copia a la app de Android (`cap sync android`).
 - APK: en `android/`, `./gradlew assembleDebug` compila «Danzi Pruebas» y `./gradlew assembleRelease` la normal (sale firmada solo si `DANZI_FIRMA_ANDROID` está definido). Necesita Java 21 y el SDK de Android en `ANDROID_HOME`. En la nube, el entorno «Danzi» permite `dl.google.com`; si el SDK no está, descarga `cmdline-tools` de `https://dl.google.com/android/repository/` en `$ANDROID_HOME/cmdline-tools/latest` y ejecuta `sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"`.
-- `npm run android:icons`: regenera los íconos de Android desde `public/icon.svg`.
+- `npm run icons`: dibuja todos los íconos (web, Android y recordatorios) a partir de Xi Bao (`scripts/icons.mjs`, necesita Playwright).
 
 ## Estructura
 
@@ -28,7 +28,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - `src/lib/mascot.ts`: sus frases (chino, pinyin con tonos y español) y qué dice en Inicio según el día (`homeLine`: primera vez, racha en riesgo desde las 5 p. m., meta cumplida, noche…). Funciones puras.
   - `src/components/XiBao.tsx`: el dibujo SVG, con seis estados de ánimo (`hola`, `listo`, `animado`, `feliz`, `preocupado`, `dormido`). `face` muestra solo la cabeza.
   - `src/components/MascotCard.tsx`: `MascotCard` (Inicio: globo con lo que dice; al tocarlo, una frase en chino en voz alta) y `MascotSays` (pantallas de «listo» de Repasar, Escribir y Hablar).
-  - `scripts/mascot-images.mjs`: dibuja su cara para los recordatorios (`public/xibao-192.png` y `android/app/src/main/res/drawable-nodpi/xibao_aviso.png`).
+  - Es el ícono de la app: `scripts/icons.mjs` dibuja su cara sobre el rojo de Danzi para la web (`public/icon*`), para Android (íconos adaptables, redondos y temáticos, y la pantalla de inicio) y para los recordatorios (`public/xibao-192.png`, `public/badge-96.png` y `xibao_aviso.png`).
 - `src/lib/speech.ts`: lectura en voz alta y reconocimiento de voz en chino.
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
@@ -49,7 +49,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - Recordatorio de la APK: el celular lo programa con `@capacitor/local-notifications`, sin GitHub. `src/lib/localReminders.ts` decide los avisos de los próximos 14 días (funciones puras); `src/native/reminders.ts` los programa y se reprograma cuando cambia el progreso; `src/components/LocalReminderPanel.tsx` es su sección de Ajustes. La hora se guarda en IndexedDB con la clave `reminder-local`.
   - `src/native/speech.ts`: en la APK, la voz usa los motores de Android (`@capacitor-community/text-to-speech` y `speech-recognition`), porque la vista web de Android no trae la voz de Chrome. `src/lib/speech.ts` elige cuál usar.
   - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
-  - `scripts/android-icons.mjs`, `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
+  - `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
   - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
 
 ## Reglas que no se rompen
@@ -100,7 +100,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 - Xi Bao:
   - Es amigable y anima; nunca regaña ni hace sentir mal. Habla en español de Colombia, tuteando, y cada cosa que dice lleva una frase corta en chino con su pinyin y su traducción.
   - Las frases nuevas van en `src/lib/mascot.ts`. `tests/mascot.test.ts` revisa su pinyin sílaba por sílaba, con tonos, contra `pinyin-pro`. Si un carácter va en tono neutro y `pinyin-pro` le pone tono (意思 yìsi, 朋友 péngyou), agrégalo a `NEUTRAL_OK` en esa prueba.
-  - Sus colores son los tokens `--panda-*` (con versión oscura) y su bufanda usa `--accent`, así que cambia con el tema. Si cambias el dibujo, ejecuta `node scripts/mascot-images.mjs` para actualizar las imágenes del recordatorio.
+  - Sus colores son los tokens `--panda-*` (con versión oscura) y su bufanda usa `--accent`, así que cambia con el tema. Si cambias el dibujo, ejecuta `npm run icons` para actualizar el ícono de la app y las imágenes del recordatorio.
 - En la APK: no hay service worker, «Descargar» usa `SaveFile`, «Cargar archivo» no filtra por tipo (Android a veces guarda el JSON con otro tipo) y las secciones que solo aplican a la web (como «Escritura sin internet») se esconden con `isNative`.
 - Accesibilidad:
   - Usa botones reales.

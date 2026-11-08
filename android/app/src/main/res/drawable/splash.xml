@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pantalla de inicio en Android 11 o anterior: el carácter 汉 sobre el rojo de Danzi.
+<!-- Pantalla de inicio en Android 11 o anterior: la cara de Xi Bao sobre el rojo de Danzi.
      Desde Android 12 la dibuja el sistema con windowSplashScreen* (values/styles.xml). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ic_launcher_background" />
     <item
         android:width="240dp"
         android:height="240dp"
-        android:drawable="@drawable/ic_launcher_foreground"
+        android:drawable="@mipmap/ic_launcher_foreground"
         android:gravity="center" />
 </layer-list>

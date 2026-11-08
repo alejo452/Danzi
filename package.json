@@ -13,7 +13,7 @@
     "data:skeleton": "node scripts/level-skeleton.mjs",
     "data:validate": "vitest run tests/data.test.ts",
     "android:sync": "npm run build && cap sync android",
-    "android:icons": "node scripts/android-icons.mjs"
+    "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "7.0.1",

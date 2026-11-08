@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Silueta de Xi Bao para los íconos temáticos. Generado por scripts/icons.mjs a partir de la geometría de Xi Bao. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="140"
+    android:viewportHeight="140">
+    <group android:translateX="10" android:translateY="27.5">
+        <path android:fillColor="#FFFFFF" android:pathData="M22 19A11 11 0 1 0 44 19A11 11 0 1 0 22 19ZM76 19A11 11 0 1 0 98 19A11 11 0 1 0 76 19Z" />
+        <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M27 44A33 33 0 1 0 93 44A33 33 0 1 0 27 44ZM37.612 41.54A9.5 12 28 1 0 54.388 50.46A9.5 12 28 1 0 37.612 41.54ZM65.612 50.46A9.5 12 -28 1 0 82.388 41.54A9.5 12 -28 1 0 65.612 50.46ZM55.8 56A4.2 3 0 1 0 64.2 56A4.2 3 0 1 0 55.8 56Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M44.6 44.5A3.4 3.4 0 1 0 51.4 44.5A3.4 3.4 0 1 0 44.6 44.5ZM68.6 44.5A3.4 3.4 0 1 0 75.4 44.5A3.4 3.4 0 1 0 68.6 44.5Z" />
+    </group>
+</vector>

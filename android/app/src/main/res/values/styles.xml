@@ -17,11 +17,11 @@
         <item name="android:windowBackground">@color/app_background</item>
     </style>
 
-    <!-- Pantalla de inicio: el carácter 汉 sobre el rojo de Danzi. -->
+    <!-- Pantalla de inicio: la cara de Xi Bao sobre el rojo de Danzi. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

@@ -24,6 +24,7 @@ export function letters(s: string): string {
  * - 血 suelto, en el habla, se lee xiě (手上有血 shǒu shang yǒu xiě); pinyin-pro da xuè.
  * - 着 como «lograr» se lee zháo (睡不着 shuì bu zháo); pinyin-pro da zhe.
  * - 系 como «abrochar, amarrar» se lee jì (系安全带 jì ānquándài); pinyin-pro da xì.
+ * - 调 como «trasladar» se lee diào (调到麦德林 diào dào Màidélín); pinyin-pro da tiáo.
  */
 export const ALSO_READ: Record<string, string[]> = {
   地: ['de'],
@@ -35,6 +36,7 @@ export const ALSO_READ: Record<string, string[]> = {
   血: ['xie'],
   着: ['zhao'],
   系: ['ji'],
+  调: ['diao'],
 };
 
 /** Pinyin automático de una frase, con erhua unido (哪儿 → nar) y 谁 como shei. Cada elemento es una sílaba o un grupo de opciones. */

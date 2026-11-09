@@ -13,7 +13,7 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
   - Practicar da monedas (铜钱), y cumplir la meta diaria abre un sobre rojo (红包).
   - Hay 20 sellos (印章) para coleccionar.
   - En la tienda hay protectores de racha y temas de color.
-- **Tu cuenta**: con un código que llega al correo (sin contraseña), el progreso queda igual en la APK, el computador y otros celulares. Si no la usas, el progreso se guarda en el dispositivo y se puede descargar y cargar en otro.
+- **Tu cuenta**: con tu correo y una contraseña, el progreso queda igual en la APK, el computador y otros celulares. Si no la usas, el progreso se guarda en el dispositivo y se puede descargar y cargar en otro.
 
 Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200), el HSK 3 (500), el HSK 4 (1000), el HSK 5 (1600) y el HSK 6 (1800)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).
 
@@ -110,27 +110,36 @@ Ten en cuenta:
 
 ### Sincronizar entre dispositivos
 
-Con una cuenta, el progreso (tarjetas, escritura, racha, monedas, sellos, temas y ajustes) queda igual en todos tus dispositivos. Se entra con un código que llega al correo, sin contraseña. Si dos dispositivos practicaron por su lado, Danzi junta lo de los dos: cada tarjeta queda con su repaso más reciente, y las monedas y la práctica de cada día se suman. El recordatorio diario es de cada dispositivo y no se sincroniza.
+Con una cuenta, el progreso (tarjetas, escritura, racha, monedas, sellos, temas y ajustes) queda igual en todos tus dispositivos. Se entra con un correo y una contraseña. Si dos dispositivos practicaron por su lado, Danzi junta lo de los dos: cada tarjeta queda con su repaso más reciente, y las monedas y la práctica de cada día se suman. El recordatorio diario es de cada dispositivo y no se sincroniza.
 
-La sincronización usa [Supabase](https://supabase.com), en su plan gratis. Mientras `supabase/config.json` esté vacío, la app no muestra la sección «Tu cuenta». Se configura una sola vez:
+La sincronización usa [Supabase](https://supabase.com), en su plan gratis. Danzi no le pide a Supabase mandar correos, así que no hace falta configurar correo (SMTP) ni cambiar plantillas. Mientras `supabase/config.json` esté vacío, la app no muestra la sección «Tu cuenta». Se configura una sola vez:
 
 1. En Supabase, crea un proyecto (por ejemplo «danzi», en la región São Paulo).
 2. En **SQL Editor › New query**, pega todo `supabase/schema.sql` y dale **Run**. Crea la tabla `progreso` con sus reglas: cada cuenta solo puede leer y cambiar su propio progreso.
-3. En **Authentication › Emails**, cambia las plantillas **Magic Link** y **Confirm signup**. En las dos, pon de asunto «Tu código de Danzi» y de mensaje el contenido de `supabase/correo-codigo.html`, para que el correo traiga el código en vez de un enlace.
-4. Decide quién puede recibir los códigos. El correo que trae Supabase solo les escribe a los miembros del proyecto, y máximo 2 correos por hora:
-   - Si Danzi lo usa solo quien creó el proyecto, no hay que hacer nada más.
-   - Para otra persona, invítala en **Organization settings › Team** (eso le da acceso al panel de Supabase), o configura un correo propio en **Authentication › Emails › SMTP Settings**: por ejemplo, una cuenta de Gmail con una contraseña de aplicación, o Brevo. Con correo propio, cualquiera que tenga la app puede crear una cuenta; cuando todos tengan la suya, puedes apagar **Allow new users to sign up** en **Authentication › Sign In / Providers**.
-5. En **Project Settings**, copia la **Project URL** (sección Data API) y la llave **publishable** (sección API Keys; en proyectos más viejos se llama **anon**). Ponlas en `supabase/config.json`:
+3. En **Authentication › Sign In / Providers**:
+   - Apaga **Confirm email** y guarda. Así, crear la cuenta en la app ya inicia la sesión, sin mandar ningún correo.
+   - Deja encendidos **Allow new users to sign up** y el proveedor **Email**.
+4. En **Project Settings**, copia la **Project URL** (sección Data API) y la llave **publishable** (sección API Keys; en proyectos más viejos se llama **anon**). Ponlas en `supabase/config.json`:
 
    ```json
    { "url": "https://<proyecto>.supabase.co", "key": "sb_publishable_…" }
    ```
 
    Las dos son públicas: van dentro de la app, y las reglas de la tabla protegen el progreso de cada cuenta. **Nunca pongas ahí la llave secreta ni la `service_role`.**
-6. Haz commit y push a `main`. La versión web y la APK se actualizan solas.
+5. Haz commit y push a `main`. La versión web y la APK se actualizan solas.
+6. En la app, entra a **Ajustes › Tu cuenta › Crear una cuenta nueva**, escribe tu correo y una contraseña. En los otros dispositivos, entra con ese mismo correo y esa contraseña.
+
+Si alguien olvida su contraseña, Supabase no puede mandarle un correo para cambiarla. Pónsela tú: en **SQL Editor › New query**, cambia el correo y la contraseña nueva en esta consulta y dale **Run**. Sus otros dispositivos siguen con la sesión iniciada.
+
+```sql
+update auth.users
+set encrypted_password = extensions.crypt('contraseña-nueva', extensions.gen_salt('bf', 10))
+where email = 'correo@ejemplo.com';
+```
 
 Ten en cuenta:
 
+- Cualquiera que tenga la app puede crear una cuenta, porque el correo no se confirma. Cuando todos tengan la suya, puedes apagar **Allow new users to sign up**.
 - En el plan gratis, Supabase pausa el proyecto si pasa una semana sin uso, y le avisa por correo a quien lo creó. Mientras esté pausado, Danzi funciona igual pero no sincroniza. Se reactiva en el panel de Supabase con **Restore project**.
 - Con la sesión iniciada, cargar un archivo o borrar el progreso también cambia la cuenta, y el cambio llega a los otros dispositivos.
 - Al cerrar sesión, el progreso se queda en el dispositivo. Si vuelves a entrar, se junta con el de la cuenta sin perder nada.

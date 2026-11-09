@@ -1,6 +1,6 @@
 // La parte liviana de la sincronización: la configuración, el estado de la cuenta y los textos. No carga Supabase:
 // la usan App.tsx y Ajustes, que se cargan siempre. El código que habla con Supabase está en src/lib/cloud.ts y se
-// carga aparte, solo cuando hace falta (hay una sesión guardada o la persona pide el código).
+// carga aparte, solo cuando hace falta (hay una sesión guardada o la persona entra o crea su cuenta).
 import { useSyncExternalStore } from 'react';
 
 /** Proyecto de Supabase (supabase/config.json). */
@@ -12,24 +12,18 @@ export const cloudConfigured = CLOUD.url !== '' && CLOUD.key !== '';
 /** Dónde guarda Supabase la sesión en este dispositivo (localStorage). */
 export const SESSION_KEY = 'danzi-sesion';
 
-/** El correo al que se mandó el último código, mientras se espera (localStorage). */
-const CODE_KEY = 'danzi-codigo';
+/** Largo mínimo de la contraseña al crear la cuenta. Supabase pide 6; se piden 8 para que sea más difícil de adivinar. */
+export const MIN_PASSWORD = 8;
+/** Supabase no acepta contraseñas de más de 72 caracteres. */
+export const MAX_PASSWORD = 72;
 
-/** Los códigos de Supabase vencen en una hora. */
-export const CODE_VALID_MS = 60 * 60 * 1000;
-
-/** Supabase deja pedir otro código al mismo correo después de 60 segundos. */
-export const CODE_RESEND_MS = 60 * 1000;
-
-export type CloudPhase = 'fuera' | 'codigo' | 'dentro';
+export type CloudPhase = 'fuera' | 'dentro';
 
 export type CloudState = {
-  /** fuera: sin sesión; codigo: se mandó un código y se espera; dentro: sesión iniciada. */
+  /** fuera: sin sesión; dentro: sesión iniciada. */
   phase: CloudPhase;
-  /** El correo de la sesión, o al que se mandó el código. */
+  /** El correo de la sesión. */
   email: string;
-  /** Cuándo se mandó el último código (ms). */
-  codeAt: number;
   /** Hay una sincronización en curso. */
   syncing: boolean;
   /** Cuándo terminó bien la última sincronización (ms), 0 si todavía no hay ninguna. */
@@ -67,43 +61,10 @@ export function hasStoredSession(): boolean {
   return storedSession() !== null;
 }
 
-/** El código que se está esperando, si se pidió hace menos de una hora. Sobrevive a que Android cierre la app
- * mientras la persona busca el correo. */
-export function readPendingCode(now = Date.now()): { email: string; at: number } | null {
-  try {
-    const raw = storage()?.getItem(CODE_KEY);
-    if (!raw) return null;
-    const { email, at } = JSON.parse(raw) as { email?: unknown; at?: unknown };
-    if (typeof email !== 'string' || typeof at !== 'number' || now - at > CODE_VALID_MS || at > now) return null;
-    return { email, at };
-  } catch {
-    return null;
-  }
-}
-
-export function savePendingCode(email: string, at: number): void {
-  try {
-    storage()?.setItem(CODE_KEY, JSON.stringify({ email, at }));
-  } catch {
-    // Sin localStorage, el código se espera solo mientras la app siga abierta.
-  }
-}
-
-export function clearPendingCode(): void {
-  try {
-    storage()?.removeItem(CODE_KEY);
-  } catch {
-    // Nada que borrar.
-  }
-}
-
 function initialState(): CloudState {
-  const base = { email: '', codeAt: 0, syncing: false, lastSync: 0, error: '', ready: true };
-  if (!cloudConfigured) return { ...base, phase: 'fuera' };
-  const session = storedSession();
+  const base = { email: '', syncing: false, lastSync: 0, error: '', ready: true };
+  const session = cloudConfigured ? storedSession() : null;
   if (session) return { ...base, phase: 'dentro', email: session.email, ready: false };
-  const pending = readPendingCode();
-  if (pending) return { ...base, phase: 'codigo', email: pending.email, codeAt: pending.at };
   return { ...base, phase: 'fuera' };
 }
 
@@ -135,22 +96,18 @@ export function useCloudReady(): boolean {
   return useSyncExternalStore(subscribe, () => state.ready);
 }
 
-/** Vuelve a pedir el correo (por ejemplo, si se escribió mal). */
-export function cancelCode(): void {
-  clearPendingCode();
-  setCloudState({ phase: 'fuera', codeAt: 0, error: '' });
-}
-
 /** Correo escrito por la persona, sin espacios y en minúsculas. null si no parece un correo. */
 export function cleanEmail(raw: string): string | null {
   const email = raw.trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
-/** Código escrito por la persona: solo los dígitos (Supabase manda de 6 a 10). null si no sirve. */
-export function cleanCode(raw: string): string | null {
-  const code = raw.replace(/\D/g, '');
-  return code.length >= 6 && code.length <= 10 ? code : null;
+/** Qué le falta a una contraseña nueva, o vacío si sirve. */
+export function newPasswordProblem(password: string): string {
+  if (password.length < MIN_PASSWORD) return `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`;
+  if (password.length > MAX_PASSWORD) return `La contraseña puede tener máximo ${MAX_PASSWORD} caracteres.`;
+  if (password.trim() !== password) return 'La contraseña no puede empezar ni terminar con un espacio.';
+  return '';
 }
 
 /** «hace un momento», «hace 5 min», «hace 2 h», «ayer» o la fecha. */
@@ -186,29 +143,33 @@ export function isOfflineError(e: unknown): boolean {
 const OFFLINE = 'No hay conexión a internet. Revisa tu conexión y vuelve a intentarlo.';
 const SETUP = 'Pídele a quien administra Danzi que revise la configuración de la nube (README, «Sincronizar entre dispositivos»).';
 
-/** Qué decirle a la persona cuando falla pedir o usar el código. */
+/** Qué decirle a la persona cuando falla entrar o crear la cuenta. */
 export function authErrorMessage(e: unknown): string {
   const { message, status, code } = parts(e);
   if (isOfflineError(e)) return OFFLINE;
-  const wait = /after (\d+) seconds?/i.exec(message);
-  if (wait) return `Espera ${wait[1]} segundos para pedir otro código.`;
   switch (code) {
-    case 'otp_expired':
-      return 'El código no es correcto o ya venció. Revísalo o pide uno nuevo.';
+    case 'invalid_credentials':
+      return 'El correo o la contraseña no coinciden. Revísalos y vuelve a intentarlo.';
+    case 'user_already_exists':
+    case 'email_exists':
+      return 'Ya hay una cuenta con ese correo. Toca «Ya tengo cuenta» y entra con tu contraseña.';
+    case 'weak_password':
+      return `Esa contraseña es muy fácil de adivinar. Usa al menos ${MIN_PASSWORD} caracteres, con letras y números.`;
+    case 'email_address_invalid':
+      return 'Ese correo no sirve. Revisa que esté bien escrito.';
+    case 'validation_failed':
+      return /password/i.test(message) ? newPasswordProblem('') : 'Ese correo no sirve. Revisa que esté bien escrito.';
+    // Supabase todavía pide confirmar el correo: hay que apagar «Confirm email».
+    case 'email_not_confirmed':
+    case 'email_address_not_authorized':
     case 'over_email_send_rate_limit':
-      return 'Ya se mandaron varios códigos. Espera un rato (hasta una hora) antes de pedir otro.';
+      return `Supabase está pidiendo confirmar el correo de la cuenta. ${SETUP}`;
+    case 'signup_disabled':
+      return 'No se pueden crear cuentas nuevas. Si ya tienes una, toca «Ya tengo cuenta».';
+    case 'email_provider_disabled':
+      return `La entrada con correo está apagada. ${SETUP}`;
     case 'over_request_rate_limit':
       return 'Hubo muchos intentos seguidos. Espera unos minutos y vuelve a intentarlo.';
-    case 'email_address_invalid':
-    case 'validation_failed':
-      return 'Ese correo no sirve. Revisa que esté bien escrito.';
-    case 'email_address_not_authorized':
-      return `Todavía no se pueden mandar códigos a ese correo. ${SETUP}`;
-    case 'signup_disabled':
-      return `Ese correo no tiene cuenta y no se pueden crear cuentas nuevas. ${SETUP}`;
-    case 'email_provider_disabled':
-    case 'otp_disabled':
-      return `La entrada con código por correo está apagada. ${SETUP}`;
     case 'user_banned':
       return 'Esta cuenta está bloqueada.';
   }

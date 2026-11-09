@@ -1,0 +1,92 @@
+name: Versiones de prueba
+
+# Publica la «Danzi Pruebas» de cada pull request en Releases, como versión preliminar con la etiqueta
+# pruebas-pr-<número>:
+# - danzi-pruebas.apk, para instalarla en el celular encima de la Danzi Pruebas anterior (misma llave de pruebas);
+# - danzi-web.zip y actualizacion.json, para que Danzi Pruebas la reciba sin reinstalar (src/native/updates.ts).
+# Al cerrar el pull request (fusionado o no), la borra.
+#
+# Corre aparte de «APK de Android» y siempre con el código de main (workflow_run y pull_request_target): del pull
+# request solo toma los archivos ya compilados (el artefacto danzi-pruebas) y los sube tal cual, sin descargar su
+# código ni ejecutar nada de él. Así puede escribir en Releases sin darle ese permiso al código de un pull request.
+# Los datos del pull request (número, título) llegan en variables de entorno, nunca dentro del script.
+#
+# Como todo workflow_run, solo funciona cuando este archivo ya está en main.
+
+on:
+  workflow_run:
+    workflows: ['APK de Android']
+    types: [completed]
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publicar:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: pruebas-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+    steps:
+      - name: Descargar Danzi Pruebas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name danzi-pruebas --dir pruebas
+      - name: Publicar la versión de prueba
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+          TITULO: ${{ github.event.workflow_run.display_title }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # Solo pull requests de este repositorio: los de otros repositorios (forks) no traen el número.
+          case "$PR" in ''|*[!0-9]*) echo "No es un pull request de este repositorio: no se publica."; exit 0 ;; esac
+          cd pruebas
+          # El aviso lo armó el pull request: se comprueba que sea de este pull request y que el zip sea el mismo.
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const m = JSON.parse(fs.readFileSync("actualizacion.json", "utf8"));
+            const pr = Number(process.env.PR);
+            const url = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/pruebas-pr-${pr}/danzi-web.zip`;
+            const sha = crypto.createHash("sha256").update(fs.readFileSync("danzi-web.zip")).digest("hex");
+            if (m.pr !== pr || m.url !== url || m.sha256 !== sha || !Number.isInteger(m.version)) {
+              console.error("El aviso no corresponde a esta versión de prueba: no se publica.");
+              process.exit(1);
+            }
+          '
+          tag="pruebas-pr-$PR"
+          version="$(node -p 'require("./actualizacion.json").version')"
+          titulo="Danzi Pruebas · #$PR · $TITULO"
+          notas="Versión de prueba 1.$version del pull request #$PR (commit $SHA).
+
+          Para instalarla en el celular, toca danzi-pruebas.apk: se instala encima de la Danzi Pruebas que tengas. Si ya tienes Danzi Pruebas, la recibe sola: Ajustes › Versiones de prueba.
+
+          Se borra cuando se cierra el pull request."
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$tag" danzi-pruebas.apk danzi-web.zip actualizacion.json --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$tag" --title "$titulo" --notes "$notas" --prerelease --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" danzi-pruebas.apk danzi-web.zip actualizacion.json --repo "$GITHUB_REPOSITORY" --target "$SHA" --prerelease --latest=false --title "$titulo" --notes "$notas"
+          fi
+          echo "Danzi Pruebas del pull request #$PR: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/danzi-pruebas.apk" >> "$GITHUB_STEP_SUMMARY"
+
+  limpiar:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Borrar la versión de prueba
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh release delete "pruebas-pr-$PR" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || echo "El pull request #$PR no tenía versión de prueba."

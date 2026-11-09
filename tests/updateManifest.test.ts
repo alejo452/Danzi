@@ -19,6 +19,7 @@ describe('aviso de versión nueva para la APK', () => {
       url: 'https://github.com/alejo452/Danzi/releases/download/android-140/danzi-web.zip',
       sha256: zipSha256,
       apkMinima: 140,
+      huellaNativa: fingerprint,
     });
   });
 
@@ -45,5 +46,20 @@ describe('aviso de versión nueva para la APK', () => {
   it('rechaza datos inválidos', () => {
     expect(() => buildManifest({ version: 0, zipSha256, fingerprint, previous: null })).toThrow();
     expect(() => buildManifest({ version: 141, zipSha256: 'xyz', fingerprint, previous: null })).toThrow();
+    expect(() => buildManifest({ version: 141, zipSha256, fingerprint: 'abc', previous: null })).toThrow();
+    expect(() => buildManifest({ version: 141, zipSha256, fingerprint, previous: null, pr: 0 })).toThrow();
+  });
+
+  it('la versión de prueba de un pull request apunta a su versión preliminar', () => {
+    const m = buildManifest({ version: 150, zipSha256, fingerprint, previous: null, pr: 17 });
+    expect(m).toEqual({
+      version: 150,
+      url: 'https://github.com/alejo452/Danzi/releases/download/pruebas-pr-17/danzi-web.zip',
+      sha256: zipSha256,
+      apkMinima: 150,
+      huellaNativa: fingerprint,
+      pr: 17,
+    });
+    expect(parseManifest(m)).toEqual(m);
   });
 });

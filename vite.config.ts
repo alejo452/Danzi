@@ -8,10 +8,19 @@ const base = process.env.BASE_PATH || '/';
 // Número de versión de la parte web (android.yml lo define con el número de ejecución). La APK lo usa para
 // saber si hay una versión más nueva (src/native/updates.ts). En las compilaciones locales vale 0.
 const danziVersion = Number.parseInt(process.env.DANZI_VERSION ?? '', 10) || 0;
+// En las versiones de prueba, el pull request del que salen (0 en las demás).
+const danziPr = Number.parseInt(process.env.DANZI_PR ?? '', 10) || 0;
+// Huella de la parte de Android de esta compilación (scripts/update-manifest.mjs --huella). «Danzi Pruebas»
+// la guarda al abrir la versión que trae la APK, para saber qué versiones de prueba puede usar sin reinstalar.
+const danziHuella = /^[0-9a-f]{64}$/.test(process.env.DANZI_HUELLA ?? '') ? process.env.DANZI_HUELLA : '';
 
 export default defineConfig({
   base,
-  define: { __DANZI_VERSION__: JSON.stringify(danziVersion) },
+  define: {
+    __DANZI_VERSION__: JSON.stringify(danziVersion),
+    __DANZI_PR__: JSON.stringify(danziPr),
+    __DANZI_HUELLA__: JSON.stringify(danziHuella),
+  },
   build: {
     rollupOptions: {
       output: {

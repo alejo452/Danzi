@@ -59,7 +59,13 @@ Es la misma app, instalada como app de Android. Funciona sin internet, se actual
 
 **Voz:** la APK usa los motores de voz de Android. Si en **Hablar** aparece «Falta la voz en chino», toca **Instalar la voz en chino** y descarga la voz en chino (China). El reconocimiento de voz usa la app de Google.
 
-**Versión de pruebas:** cada pull request compila «Danzi Pruebas», que se instala al lado de la app normal, con su propio progreso. Se descarga en el pull request, en **Checks › APK de Android › Artifacts › danzi-pruebas** (viene dentro de un .zip). Cada compilación de prueba lleva su propia firma: para instalar una nueva, primero desinstala la «Danzi Pruebas» anterior (nunca la normal).
+**Versión de pruebas («Danzi Pruebas»):** sirve para probar cada pull request en el celular antes de fusionarlo. Se instala al lado de la app normal, con su propio progreso.
+
+- Cada pull request publica su versión de prueba en **Releases**, como versión preliminar «Danzi Pruebas · #N». El enlace para el celular es `https://github.com/alejo452/Danzi/releases/download/pruebas-pr-<N>/danzi-pruebas.apk`. Se borra cuando se cierra el pull request.
+- Todas las versiones de prueba van firmadas con la misma llave de pruebas, así que una nueva se instala encima de la anterior, sin desinstalarla. Solo la primera vez, si tienes una «Danzi Pruebas» de antes de este cambio, desinstálala (nunca la normal).
+- Dentro de Danzi Pruebas, **Ajustes › Versiones de prueba** muestra de qué pull request es la versión que tienes y lista los pull requests abiertos. Al abrirla, descarga sola la versión nueva del pull request que estás probando. Para pasar a otro, toca **Probar**: cambia en el momento, sin reinstalar.
+- Si un pull request cambia la parte de Android, ahí mismo sale el botón **Descargar la APK de prueba**.
+- La publicación la hace el workflow «Versiones de prueba» (`.github/workflows/pruebas.yml`), que empieza a funcionar cuando está en `main`. La APK de prueba también queda en el pull request, en **Checks › APK de Android › Artifacts › danzi-pruebas**.
 
 **La llave de firma** (una sola vez, antes de la primera versión): todas las versiones de la APK se firman con la misma llave. Vive en el secreto `DANZI_FIRMA_ANDROID` (**Settings › Secrets and variables › Actions**), y conviene guardar una copia del archivo en un lugar seguro, como tu Google Drive: si se pierde, la APK ya no se puede actualizar. Su huella, que es pública, está en `android/firma-sha256.txt`, y el workflow no publica una APK firmada con otra llave.
 

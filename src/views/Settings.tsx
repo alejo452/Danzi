@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconBack } from '../components/Icons';
 import { LocalReminderPanel } from '../components/LocalReminderPanel';
 import { ReminderPanel } from '../components/ReminderPanel';
+import { UpdatePanel } from '../components/UpdatePanel';
 import { isReady, LEVELS } from '../data/levels';
 import { dayKey } from '../lib/dates';
 import { isNative } from '../lib/native';
@@ -228,6 +229,8 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
           </div>
         )}
       </section>
+
+      {isNative && <UpdatePanel />}
 
       <section className="panel prose">
         <h2 className="label">Cómo funciona</h2>

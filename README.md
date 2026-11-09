@@ -33,15 +33,21 @@ npm run build
 
 ### App para Android (APK)
 
-Es la misma app, instalada como app de Android. Funciona sin internet, y el recordatorio lo programa el propio celular: no depende de GitHub ni hay que pegar ningún código.
+Es la misma app, instalada como app de Android. Funciona sin internet, se actualiza sola y el recordatorio lo programa el propio celular: no depende de GitHub ni hay que pegar ningún código.
 
 **Instalarla o actualizarla:**
 
 1. En el celular, abre https://github.com/alejo452/Danzi/releases/latest/download/danzi.apk (o entra a **Releases**, abre la versión más reciente y toca `danzi.apk`).
 2. Abre el archivo descargado. La primera vez, Android pide permitir **Instalar apps desconocidas** para Chrome o para Archivos: permítelo y toca **Instalar**.
-3. Para actualizarla, descarga la APK nueva e instálala encima. El progreso se queda.
+3. Para actualizarla a mano, descarga la APK nueva e instálala encima. El progreso se queda.
 
 **Nunca desinstales la APK: desinstalarla borra el progreso.** Si Android dice que no puede instalar una versión nueva, no la desinstales para intentarlo de nuevo.
+
+**Se actualiza sola:** al abrirla, Danzi busca la versión nueva en Releases, la descarga y la usa la próxima vez que vuelvas a la app. El progreso no cambia. Si una versión nueva no arranca bien, la app vuelve sola a la anterior. En **Ajustes › Actualizaciones** ves la versión que tienes y puedes buscar una nueva.
+
+- Solo cuando cambia la parte de Android (por ejemplo, un permiso o un complemento nuevo) hay que instalar la APK otra vez. Ajustes lo dice y trae el enlace.
+- Las APK de antes de la actualización automática no tienen esta función: instala la APK nueva una vez y desde ahí se actualiza sola.
+- La descarga pesa unos 3,5 MB por versión.
 
 **Pasar el progreso desde la versión web** (una sola vez):
 
@@ -100,7 +106,7 @@ Ten en cuenta:
 
 Cada push a `main` publica la app en GitHub Pages con `.github/workflows/deploy.yml`. Solo la primera vez, en el repositorio de GitHub, entra a **Settings › Pages** y en **Source** elige **GitHub Actions**.
 
-Cada push a `main` también compila la APK firmada y la publica en **Releases** (`.github/workflows/android.yml`). Necesita el secreto `DANZI_FIRMA_ANDROID`.
+Cada push a `main` también compila la APK firmada y la publica en **Releases** (`.github/workflows/android.yml`), junto con la parte web (`danzi-web.zip`) y el aviso `actualizacion.json` que usa la actualización automática. Necesita el secreto `DANZI_FIRMA_ANDROID`.
 
 ## Créditos
 

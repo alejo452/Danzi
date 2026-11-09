@@ -82,6 +82,13 @@ export default function App() {
     import('./native/reminders').then((m) => m.queueSync()).catch(() => undefined);
   }, [loaded, p]);
 
+  // En la APK: confirma que esta versión arrancó bien y busca la versión nueva (src/native/updates.ts).
+  // Va al montar la app: si una versión nueva falla antes de llegar aquí, el plugin vuelve a la anterior.
+  useEffect(() => {
+    if (!isNative) return;
+    import('./native/updates').then((m) => m.startUpdates()).catch(() => undefined);
+  }, []);
+
   // En la APK, tocar el aviso abre la vista que indica.
   useEffect(() => {
     if (!isNative) return;

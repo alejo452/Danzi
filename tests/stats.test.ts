@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ANSWER_CAP_S, answerSeconds, freshProgress, normalizeProgress, PROGRESS_VERSION, recordAnswer, recordSpeaking, todayLog, type Progress } from '../src/lib/progress';
 import { previewAll, Rating, type StoredCard } from '../src/lib/srs';
+import { activityTotals, dailyStats, durationLabel, estimatedRecall, firstTimedDay, MIN_REVIEWS, percentLabel, retention, studySeconds } from '../src/lib/stats';
 import { mergeProgress } from '../src/lib/sync';
 
 const NOW = new Date('2026-11-09T15:00:00');
@@ -63,5 +64,67 @@ describe('lo que se mide para las estadísticas', () => {
     const local = { ...base, log: { '2026-11-09': { r: 14, t: 420, rr: 12, rf: 2 } } };
     const remote = { ...base, log: { '2026-11-09': { r: 12, t: 360, rr: 9, rf: 1, w: 3 } } };
     expect(mergeProgress(base, local, remote).log['2026-11-09']).toEqual({ r: 16, t: 480, rr: 13, rf: 2, w: 3 });
+  });
+});
+
+describe('cálculos de las estadísticas', () => {
+  const p: Progress = {
+    ...freshProgress(),
+    log: {
+      '2026-11-09': { r: 20, w: 5, h: 3, t: 900, rr: 12, rf: 1, wr: 4, wf: 1 },
+      '2026-11-08': { r: 10, t: 300, rr: 6, rf: 2 },
+      '2026-11-03': { r: 4, h: 2, t: 120, rr: 3 },
+      // Antes de la versión 4 no había tiempo ni retención.
+      '2026-10-01': { r: 30, w: 10 },
+    },
+  };
+
+  it('arma los días, del más viejo a hoy, con tiempo y actividad', () => {
+    const days = dailyStats(p, NOW, 7);
+    expect(days.map((d) => d.key)).toEqual(['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09']);
+    expect(days.map((d) => d.seconds)).toEqual([120, 0, 0, 0, 0, 300, 900]);
+    expect(days.map((d) => d.activities)).toEqual([6, 0, 0, 0, 0, 10, 28]);
+    expect(days[6].date.getDate()).toBe(9);
+  });
+
+  it('suma el tiempo de los últimos días y sabe desde cuándo se mide', () => {
+    expect(studySeconds(p, NOW, 1)).toBe(900);
+    expect(studySeconds(p, NOW, 7)).toBe(1320);
+    expect(studySeconds(p, NOW, 2)).toBe(1200);
+    expect(firstTimedDay(p)).toBe('2026-11-03');
+    expect(firstTimedDay(freshProgress())).toBeNull();
+  });
+
+  it('cuenta la actividad de los últimos 30 días', () => {
+    expect(activityTotals(p, NOW, 30)).toEqual({ cards: 34, writing: 5, speaking: 5 });
+    expect(activityTotals(p, NOW, 60)).toEqual({ cards: 64, writing: 15, speaking: 5 });
+  });
+
+  it('calcula la retención real solo con suficientes repasos', () => {
+    expect(retention(p, NOW, 30, 'read')).toEqual({ reviews: 21, forgot: 3, rate: 18 / 21 });
+    expect(retention(p, NOW, 30, 'write')).toEqual({ reviews: 4, forgot: 1, rate: null });
+    expect(MIN_REVIEWS).toBe(10);
+    expect(retention(p, NOW, 1, 'read').rate).toBeCloseTo(11 / 12);
+  });
+
+  it('estima cuánto recordarías hoy con FSRS', () => {
+    const fresh: Progress = { ...freshProgress(), decks: { read: { a: inReview(), b: inReview(), nueva: previewAll(undefined, NOW)[Rating.Good] }, write: {} } };
+    const r = estimatedRecall(fresh, NOW, 'read');
+    expect(r.words).toBe(2);
+    // Repasadas hace 10 días, con estabilidad 12: FSRS da algo menos del 90 %.
+    expect(r.rate!).toBeGreaterThan(0.85);
+    expect(r.rate!).toBeLessThan(0.95);
+    expect(estimatedRecall(fresh, NOW, 'write')).toEqual({ words: 0, rate: null });
+  });
+
+  it('escribe duraciones y porcentajes, sin separar el número de su unidad', () => {
+    const plain = (s: string) => s.replace(/\u00a0/g, ' ');
+    expect(plain(durationLabel(0))).toBe('0 min');
+    expect(plain(durationLabel(20))).toBe('menos de 1 min');
+    expect(plain(durationLabel(12 * 60 + 10))).toBe('12 min');
+    expect(plain(durationLabel(85 * 60))).toBe('1 h 25 min');
+    expect(plain(durationLabel(120 * 60))).toBe('2 h');
+    expect(durationLabel(85 * 60)).toBe('1\u00a0h 25\u00a0min');
+    expect(percentLabel(18 / 21)).toBe('86\u00a0%');
   });
 });

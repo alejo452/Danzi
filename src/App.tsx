@@ -16,10 +16,11 @@ import { Review } from './views/Review';
 import { Rewards } from './views/Rewards';
 import { Settings } from './views/Settings';
 import { Speak } from './views/Speak';
+import { Stats } from './views/Stats';
 import { Words } from './views/Words';
 import { Write } from './views/Write';
 
-export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes', 'premios'] as const;
+export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes', 'premios', 'estadisticas'] as const;
 export type View = (typeof VIEWS)[number];
 
 function viewFromHash(): View {
@@ -155,6 +156,8 @@ export default function App() {
           <Words p={p} words={words} />
         ) : view === 'premios' ? (
           <Rewards p={p} go={go} />
+        ) : view === 'estadisticas' ? (
+          <Stats p={p} go={go} />
         ) : (
           <Settings p={p} words={words} go={go} />
         )}

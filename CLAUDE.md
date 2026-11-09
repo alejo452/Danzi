@@ -16,11 +16,11 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 
 ## Estructura
 
-- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y dos vistas sin pestaña (`#ajustes` y `#premios`, a las que se llega desde Inicio). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
+- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y tres vistas sin pestaña (`#ajustes`, `#premios` y `#estadisticas`, a las que se llega desde Inicio). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
 - `src/views/`: una vista por pestaña.
 - `src/lib/srs.ts`: repaso espaciado con FSRS (`ts-fsrs`). Pasos de aprendizaje: 1 min y 10 min.
 - `src/lib/queue.ts`: qué tarjeta toca y cuántas quedan hoy. Sirve para los dos mazos: lectura (`read`) y escritura (`write`).
-- `src/lib/progress.ts`: modelo del progreso, con funciones puras. `src/lib/useProgress.ts` lo guarda en IndexedDB. Va en la versión 3: además de mazos, actividad, recompensas y meta diaria, guarda el armario y el atuendo de Xi Bao. `recordAnswer` y `recordSpeaking` suman monedas con tope diario.
+- `src/lib/progress.ts`: modelo del progreso, con funciones puras. `src/lib/useProgress.ts` lo guarda en IndexedDB. Va en la versión 4: además de mazos, actividad, recompensas, meta diaria y el armario y el atuendo de Xi Bao, cada día guarda el tiempo de estudio y los repasos recordados u olvidados (para las estadísticas). `recordAnswer` y `recordSpeaking` suman monedas con tope diario.
 - Recompensas:
   - `src/lib/rewards.ts`: funciones puras de la meta diaria y el sobre rojo (红包), los protectores de racha, la mejor racha, los sellos (印章), la tienda y el calendario.
   - `src/views/Rewards.tsx`: la vista Premios (`#premios`), con el saldo, la tienda (protectores y temas) y los sellos.
@@ -32,6 +32,12 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - `src/components/XiBao.tsx`: el dibujo SVG, con seis estados de ánimo (`hola`, `listo`, `animado`, `feliz`, `preocupado`, `dormido`). `face` muestra solo la cabeza.
   - `src/components/MascotCard.tsx`: `MascotCard` (Inicio: globo con lo que dice; al tocarlo, una frase en chino en voz alta) y `MascotSays` (pantallas de «listo» de Repasar, Escribir y Hablar).
   - Es el ícono de la app: `scripts/icons.mjs` dibuja su cara sobre el rojo de Danzi para la web (`public/icon*`), para Android (íconos adaptables, redondos y temáticos, y la pantalla de inicio) y para los recordatorios (`public/xibao-192.png`, `public/badge-96.png` y `xibao_aviso.png`).
+- Estadísticas (`#estadisticas`, desde Inicio › Tu progreso):
+  - Qué se guarda (versión 4, en cada día del registro): `t`, segundos de estudio; `rr` y `rf`, respuestas a tarjetas que ya estaban en repaso y, de esas, las olvidadas («Otra vez»); `wr` y `wf`, lo mismo en escritura.
+  - El tiempo de cada respuesta va desde que aparece la tarjeta, la palabra o el ejercicio hasta que se responde, con un tope como en Anki (`answerSeconds` y `ANSWER_CAP_S` en `progress.ts`: 1 minuto, 2 en escritura). Lo miden Repasar, Escribir y Hablar.
+  - Una respuesta cuenta como olvidada si FSRS le suma un olvido (`lapses`), así que `recordAnswer` no necesita saber qué botón se tocó.
+  - `src/lib/stats.ts`: funciones puras (tiempo y actividad por día, retención real de los últimos 30 días y cuánto recordarías hoy según FSRS, con `recallChance` de `srs.ts`).
+  - `src/views/Stats.tsx`: la vista. `src/components/ColumnChart.tsx`: columnas de una serie (barras en `--chart-bar`, la elegida en `--accent`), con la lectura del valor al tocar o enfocar cada columna y una vista de tabla.
 - `src/lib/speech.ts`: lectura en voz alta y reconocimiento de voz en chino.
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
@@ -133,6 +139,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 
 - Diseño pensado primero para el celular: una columna de máximo 560 px y botones de al menos 44 px.
 - Usa los tokens de color de `src/styles.css`. Cada token tiene versión oscura, y ningún componente lleva colores sueltos.
+- Gráficas: los colores de las etapas (`--seg-*`) y de las columnas (`--chart-bar`) pasaron el validador de la skill de visualización de datos, en claro y en oscuro (daltonismo, contraste y saturación). Si los cambias, vuelve a validarlos. Cada gráfica lleva su texto: leyenda con cantidades, lectura del valor o tabla.
 - Los temas de color (`:root[data-accent="…"]`) solo cambian `--accent`, `--on-accent`, `--grid` y `--bar`. Si agregas uno, defínelo en claro y en oscuro, con contraste AA (4,5:1) para el texto y los botones.
 - Animaciones: todas están en `src/styles.css` y se apagan con `prefers-reduced-motion`. Ningún cambio de estado puede depender de que una animación termine. Las celebraciones (sellos, protector usado) solo aparecen en Inicio y en Premios, nunca en medio de un repaso.
 - Fuentes: Space Grotesk para títulos, Inter para texto y Noto Sans SC para caracteres. Pon `lang="zh-Hans"` en todo texto en chino.

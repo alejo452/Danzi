@@ -2,7 +2,7 @@
 // El tiempo y los repasos recordados u olvidados se guardan desde la versión 4 del progreso (DayLog: t, rr, rf, wr,
 // wf); la actividad (tarjetas, escritura y habla) viene de antes.
 import { addDays, dayKey, fromDayKey } from './dates';
-import type { DeckKind, Progress } from './progress';
+import { activities, type DeckKind, type Progress } from './progress';
 import { recallChance } from './srs';
 
 /** Estado «en repaso» de una tarjeta FSRS (State.Review de ts-fsrs). */
@@ -30,7 +30,7 @@ export function dailyStats(p: Progress, now: Date, days: number): DayStat[] {
     const date = addDays(now, -i);
     const key = dayKey(date);
     const l = p.log[key] ?? {};
-    out.push({ key, date: fromDayKey(key), seconds: l.t ?? 0, activities: (l.r ?? 0) + (l.w ?? 0) + (l.h ?? 0) });
+    out.push({ key, date: fromDayKey(key), seconds: l.t ?? 0, activities: activities(l) });
   }
   return out;
 }
@@ -46,14 +46,15 @@ export function firstTimedDay(p: Progress): string | null {
   return days[0] ?? null;
 }
 
-/** Tarjetas, palabras escritas y ejercicios de habla de los últimos `days` días, contando hoy. */
-export function activityTotals(p: Progress, now: Date, days: number): { cards: number; writing: number; speaking: number } {
-  const out = { cards: 0, writing: 0, speaking: 0 };
+/** Tarjetas, palabras escritas, ejercicios de habla y palabras en papel de los últimos `days` días, contando hoy. */
+export function activityTotals(p: Progress, now: Date, days: number): { cards: number; writing: number; speaking: number; paper: number } {
+  const out = { cards: 0, writing: 0, speaking: 0, paper: 0 };
   for (const d of dailyStats(p, now, days)) {
     const l = p.log[d.key] ?? {};
     out.cards += l.r ?? 0;
     out.writing += l.w ?? 0;
     out.speaking += l.h ?? 0;
+    out.paper += l.pa ?? 0;
   }
   return out;
 }

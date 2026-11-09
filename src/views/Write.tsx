@@ -6,6 +6,7 @@ import { MascotSays } from '../components/MascotCard';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
 import { PHRASES } from '../lib/mascot';
+import { isNative } from '../lib/native';
 import { addExtraNew, ANSWER_CAP_S, answerSeconds, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canSpeak, speak } from '../lib/speech';
@@ -176,6 +177,7 @@ export function Write({ p, words, counts, go }: Props) {
               </button>
             )}
             {(none || !candidates.length) && <button type="button" className="btn-line" onClick={() => go('repasar')}>Ir a Repasar</button>}
+            {!none && isNative && <button type="button" className="btn-line" onClick={() => go('papel')}>Escribir en papel</button>}
           </div>
         </div>
       </section>

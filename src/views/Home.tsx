@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CoinCount } from '../components/CoinCount';
 import { EnvelopeArt, EnvelopeSheet } from '../components/Envelope';
 import { GoalRing } from '../components/GoalRing';
-import { IconFlame, IconGear, IconMic, IconPencil, IconScan } from '../components/Icons';
+import { IconCamera, IconFlame, IconGear, IconMic, IconPencil, IconScan } from '../components/Icons';
 import { MascotCard } from '../components/MascotCard';
 import { Sheet } from '../components/Sheet';
 import { StreakCalendar } from '../components/StreakCalendar';
@@ -47,6 +47,7 @@ export function Home({ p, words, read, write, go }: Props) {
   if (tl.r) activity.push(plural(tl.r, 'repaso', 'repasos'));
   if (tl.w) activity.push(plural(tl.w, 'palabra escrita', 'palabras escritas'));
   if (tl.h) activity.push(plural(tl.h, 'ejercicio de habla', 'ejercicios de habla'));
+  if (tl.pa) activity.push(plural(tl.pa, 'palabra en papel', 'palabras en papel'));
   const activityText = activity.length
     ? `Hoy llevas ${activity.join(', ').replace(/, ([^,]*)$/, ' y $1')}.`
     : 'Cada tarjeta, palabra escrita o ejercicio de habla cuenta para la meta.';
@@ -149,6 +150,13 @@ export function Home({ p, words, read, write, go }: Props) {
             <span className="txt"><b>Habla</b><small>Entrena tonos y repite frases en voz alta</small></span>
             <span className="val">{tl.h ? `${tl.h} hoy` : ''}</span>
           </button>
+          {isNative && (
+            <button type="button" onClick={() => go('papel')}>
+              <span className="ico"><IconCamera size={20} /></span>
+              <span className="txt"><b>Escritura en papel</b><small>Escribe a mano la palabra que te pide Danzi y tómale una foto</small></span>
+              <span className="val">{tl.pa ? `${tl.pa} hoy` : ''}</span>
+            </button>
+          )}
           <button type="button" onClick={() => go('leer')}>
             <span className="ico"><IconScan size={20} /></span>
             <span className="txt">

@@ -2,17 +2,16 @@
 // Funciones puras, como progress.ts: reciben un progreso y devuelven uno nuevo.
 import { LEVELS, levelOfId } from '../data/levelList';
 import { addDays, dayKey, fromDayKey } from './dates';
-import { addCoins, MAX_SHIELDS, practiced, todayLog, type Progress } from './progress';
+import { activities, addCoins, MAX_SHIELDS, practiced, type Progress } from './progress';
 import { isMature } from './srs';
 
 // ── Meta diaria y sobre rojo ────────────────────────────────────────────────────────────────
 
 export const DAILY_GOALS = [10, 20, 30, 50];
 
-/** Actividades de hoy que cuentan para la meta: tarjetas, palabras escritas y ejercicios de habla. */
+/** Actividades de hoy que cuentan para la meta: tarjetas, palabras escritas, ejercicios de habla y palabras en papel. */
 export function activityToday(p: Progress, now: Date): number {
-  const t = todayLog(p, now);
-  return t.r + t.w + t.h;
+  return activities(p.log[dayKey(now)]);
 }
 
 export function goalProgress(p: Progress, now: Date): { done: number; goal: number; reached: boolean } {

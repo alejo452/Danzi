@@ -73,6 +73,7 @@ export function Stats({ p, go }: { p: Progress; go: (v: View) => void }) {
     totals.cards && plural(totals.cards, 'tarjeta', 'tarjetas'),
     totals.writing && plural(totals.writing, 'palabra escrita', 'palabras escritas'),
     totals.speaking && plural(totals.speaking, 'ejercicio de habla', 'ejercicios de habla'),
+    totals.paper && plural(totals.paper, 'palabra en papel', 'palabras en papel'),
   ].filter((s): s is string => !!s);
 
   return (

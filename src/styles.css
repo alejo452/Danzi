@@ -577,3 +577,7 @@ dialog.sheet::backdrop { background: rgba(16, 18, 23, .55); background: var(--ov
 .rd-ex { display: flex; flex-direction: column; gap: 2px; }
 .rd-ex .hz { font-size: 18px; }
 .rd-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; min-height: 56px; }
+
+/* ── Escritura en papel (#papel) ─────────────────────────────────────────── */
+.pp-hz { font-size: 56px; line-height: 1.2; margin-top: 4px; }
+.done .pp-hz { color: var(--fg); max-width: none; }

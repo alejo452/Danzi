@@ -5,6 +5,7 @@ import { SealMark } from '../components/SealMark';
 import { Sheet } from '../components/Sheet';
 import { Wardrobe } from '../components/Wardrobe';
 import { fromDayKey, plural } from '../lib/dates';
+import { isNative } from '../lib/native';
 import { EARN, MAX_SHIELDS, todayLog, type Progress } from '../lib/progress';
 import { buyShield, buyTheme, sealStats, SEALS, selectTheme, SHIELD_PRICE, THEMES, type Seal } from '../lib/rewards';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
@@ -143,11 +144,14 @@ export function Rewards({ p, go }: Props) {
           <li>Cada palabra nueva<b>+<Coin size={15} />{EARN.newWord}</b></li>
           <li>Cada palabra que escribes<b><Coin size={15} />{EARN.write}</b></li>
           <li>Cada ejercicio de habla<b><Coin size={15} />{EARN.speak}</b></li>
+          {isNative && <li>Cada palabra que escribes en papel, de memoria<b><Coin size={15} />{EARN.paper}</b></li>}
           <li>Sobre rojo al cumplir la meta del día<b><Coin size={15} />10–25</b></li>
           <li>Cada sello nuevo<b><Coin size={15} />10–500</b></li>
         </ul>
         <p className="note">
-          Por día cuentan hasta {EARN.cardCap} tarjetas, {EARN.writeCap} palabras escritas y {EARN.speakCap} ejercicios de habla. Las palabras nuevas siempre suman.
+          Por día cuentan hasta {EARN.cardCap} tarjetas, {EARN.writeCap} palabras escritas
+          {isNative ? `, ${EARN.speakCap} ejercicios de habla y ${EARN.paperCap} palabras en papel` : ` y ${EARN.speakCap} ejercicios de habla`}. Las palabras
+          nuevas siempre suman.
         </p>
       </section>
 

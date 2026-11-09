@@ -53,8 +53,8 @@ describe('lo que se mide para las estadísticas', () => {
   it('el progreso de la versión anterior sirve tal cual', () => {
     const v3 = { ...freshProgress(), v: 3, log: { '2026-11-08': { r: 20, n: 5, c: 25 } } };
     const p = normalizeProgress(JSON.parse(JSON.stringify(v3)));
-    expect(PROGRESS_VERSION).toBe(4);
-    expect(p.v).toBe(4);
+    expect(PROGRESS_VERSION).toBe(5);
+    expect(p.v).toBe(5);
     expect(p.log).toEqual({ '2026-11-08': { r: 20, n: 5, c: 25 } });
     expect(todayLog(p, new Date('2026-11-08T10:00:00')).t).toBe(0);
   });
@@ -96,8 +96,8 @@ describe('cálculos de las estadísticas', () => {
   });
 
   it('cuenta la actividad de los últimos 30 días', () => {
-    expect(activityTotals(p, NOW, 30)).toEqual({ cards: 34, writing: 5, speaking: 5 });
-    expect(activityTotals(p, NOW, 60)).toEqual({ cards: 64, writing: 15, speaking: 5 });
+    expect(activityTotals(p, NOW, 30)).toEqual({ cards: 34, writing: 5, speaking: 5, paper: 0 });
+    expect(activityTotals(p, NOW, 60)).toEqual({ cards: 64, writing: 15, speaking: 5, paper: 0 });
   });
 
   it('calcula la retención real solo con suficientes repasos', () => {

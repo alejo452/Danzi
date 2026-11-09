@@ -15,6 +15,11 @@ describe('leer el texto de una foto: errores', () => {
 
   it('cada problema dice qué pasó y qué hacer, en español', () => {
     expect(photoErrorMessage(fail('SIN_CAMARA'), 'camara')).toBe('Este celular no tiene una app de cámara. Elige una foto de la galería.');
+    // En Escritura en papel no hay galería ni texto para pegar: no los sugiere.
+    expect(photoErrorMessage(fail('SIN_CAMARA'), 'camara', 'papel')).toBe(
+      'Este celular no tiene una app de cámara, y este ejercicio la necesita. Practica la escritura en la pestaña Escribir.',
+    );
+    expect(photoErrorMessage(fail('SIN_SERVICIOS'), 'camara', 'papel')).not.toMatch(/pégalo/);
     expect(photoErrorMessage(fail('GALERIA'), 'galeria')).toBe('No se pudo abrir la galería. Vuelve a intentarlo.');
     expect(photoErrorMessage(fail('DESCARGANDO'), 'camara')).toMatch(/se está descargando.*Vuelve a intentarlo en un minuto/);
     expect(photoErrorMessage(fail('SIN_SERVICIOS'), 'galeria')).toMatch(/Google Play Services.*pégalo aquí/);

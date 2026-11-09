@@ -1,8 +1,8 @@
 // Texto del recordatorio diario. Lo usa el service worker cuando llega la notificación,
 // así que se arma con el progreso guardado en el dispositivo en ese momento.
 import { LEVELS, levelOfId } from '../data/levelList';
-import { endOfToday, plural } from './dates';
-import { newLeftToday, streak, todayLog, type Progress } from './progress';
+import { dayKey, endOfToday, plural } from './dates';
+import { newLeftToday, practiced, streak, type Progress } from './progress';
 
 export type ReminderMessage = { title: string; body: string; studiedToday: boolean };
 
@@ -29,8 +29,7 @@ export function newWordsLeftToday(p: Progress, now: Date): number {
 }
 
 export function reminderMessage(p: Progress, now: Date): ReminderMessage {
-  const t = todayLog(p, now);
-  const studiedToday = t.r + t.w + t.h > 0;
+  const studiedToday = practiced(p.log[dayKey(now)]);
   const days = streak(p, now);
   const due = cardsDueToday(p, now);
   const fresh = newWordsLeftToday(p, now);

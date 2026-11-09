@@ -82,7 +82,7 @@ function mergeDeck(base: Deck | undefined, local: Deck, remote: Deck): Deck {
   return mergeKeys(base, local, remote, (l, r) => (l && r ? newerCard(l, r) : (l ?? r)));
 }
 
-const LOG_FIELDS = ['r', 'n', 'w', 'wn', 'h', 'c', 't', 'rr', 'rf', 'wr', 'wf'] as const;
+const LOG_FIELDS = ['r', 'n', 'w', 'wn', 'h', 'c', 't', 'rr', 'rf', 'wr', 'wf', 'pa'] as const;
 
 /** Con base: base + Δlocal + Δremoto (nunca menos de 0). Sin base: el mayor. */
 function mergeCount(b: number | undefined, l: number, r: number): number {

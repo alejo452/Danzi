@@ -12,7 +12,16 @@ import { reminderMessage } from './reminderMessage';
  */
 export const LOCAL_REMINDER_KEY = 'reminder-local';
 
-export type LocalReminder = { hour: number };
+export type LocalReminder = { hour: number; minute: number };
+
+/** Los recordatorios anteriores solo guardaban la hora: conservan el minuto cero. */
+export function normalizeLocalReminder(raw: unknown): LocalReminder | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const { hour, minute = 0 } = raw as Record<string, unknown>;
+  if (typeof hour !== 'number' || !Number.isInteger(hour) || hour < 0 || hour > 23) return undefined;
+  if (typeof minute !== 'number' || !Number.isInteger(minute) || minute < 0 || minute > 59) return undefined;
+  return { hour, minute };
+}
 
 /** Días que se programan por adelantado. Si no abres la app en dos semanas, los avisos se acaban. */
 export const DAYS_AHEAD = 14;
@@ -24,16 +33,19 @@ export const TEST_ID = 7799;
 export type PlannedReminder = { id: number; at: Date; title: string; body: string };
 
 /**
- * Los avisos de los próximos días, a la hora elegida (en punto). Si hoy ya practicaste o la hora ya pasó,
+ * Los avisos de los próximos días, a la hora y minuto elegidos. Si hoy ya practicaste o la hora ya pasó,
  * empiezan mañana. Cada texto es el que corresponde a ese día si no vuelves a practicar antes:
  * con la racha en riesgo y las tarjetas que se van acumulando.
  */
-export function planLocalReminders(p: Progress, hour: number, now: Date, days = DAYS_AHEAD): PlannedReminder[] {
+export function planLocalReminders(p: Progress, time: LocalReminder, now: Date, days = DAYS_AHEAD): PlannedReminder[] {
+  const settings = normalizeLocalReminder(time);
+  if (!settings || !Number.isFinite(now.getTime())) throw new RangeError('La hora del recordatorio no es válida.');
+  if (!Number.isInteger(days) || days < 0 || days > DAYS_AHEAD) throw new RangeError('El número de días no es válido.');
   const studiedToday = practiced(p.log[dayKey(now)]);
   const plan: PlannedReminder[] = [];
   for (let i = 0; plan.length < days; i++) {
     const at = addDays(now, i);
-    at.setHours(hour, 0, 0, 0);
+    at.setHours(settings.hour, settings.minute, 0, 0);
     if (i === 0 && (studiedToday || at.getTime() <= now.getTime())) continue;
     const m = reminderMessage(p, at);
     plan.push({ id: FIRST_ID + plan.length, at, title: m.title, body: m.body });

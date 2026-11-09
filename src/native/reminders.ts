@@ -6,6 +6,7 @@ import { del, get, set } from 'idb-keyval';
 import {
   LOCAL_REMINDER_KEY,
   TEST_ID,
+  normalizeLocalReminder,
   planLocalReminders,
   planSignature,
   plannedIds,
@@ -23,7 +24,7 @@ export type NotificationPermission = 'granted' | 'denied' | 'prompt';
 
 export async function loadLocalReminder(): Promise<LocalReminder | undefined> {
   try {
-    return await get<LocalReminder>(LOCAL_REMINDER_KEY);
+    return normalizeLocalReminder(await get<unknown>(LOCAL_REMINDER_KEY));
   } catch {
     return undefined;
   }
@@ -88,7 +89,7 @@ export async function syncReminders(): Promise<PlannedReminder[] | null> {
     return null;
   }
   if ((await notificationPermission()) !== 'granted') return null;
-  const plan = planLocalReminders(getProgress(), settings.hour, new Date());
+  const plan = planLocalReminders(getProgress(), settings, new Date());
   const signature = planSignature(plan);
   if (signature === lastSignature) return plan;
   await ensureChannel();
@@ -122,16 +123,24 @@ export function queueSync(delay = 3000): void {
   }, delay);
 }
 
-export async function enableLocalReminder(hour: number): Promise<'ok' | 'denied'> {
+function validTime(hour: number, minute: number): LocalReminder {
+  const settings = normalizeLocalReminder({ hour, minute });
+  if (!settings) throw new RangeError('La hora del recordatorio no es válida.');
+  return settings;
+}
+
+export async function enableLocalReminder(hour: number, minute = 0): Promise<'ok' | 'denied'> {
+  const settings = validTime(hour, minute);
   if (!(await askPermission())) return 'denied';
-  await set(LOCAL_REMINDER_KEY, { hour } satisfies LocalReminder);
+  await set(LOCAL_REMINDER_KEY, settings);
   lastSignature = '';
   await syncReminders();
   return 'ok';
 }
 
-export async function changeLocalReminderHour(hour: number): Promise<PlannedReminder[] | null> {
-  await set(LOCAL_REMINDER_KEY, { hour } satisfies LocalReminder);
+export async function changeLocalReminderHour(hour: number, minute = 0): Promise<PlannedReminder[] | null> {
+  const settings = validTime(hour, minute);
+  await set(LOCAL_REMINDER_KEY, settings);
   return syncReminders();
 }
 

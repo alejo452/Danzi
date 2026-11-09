@@ -56,7 +56,7 @@ Es la misma app, instalada como app de Android. Funciona sin internet, se actual
 2. En la APK, entra a **Ajustes › Tu progreso › Cargar archivo**, elige ese archivo y toca **Reemplazar**.
 3. Revisa que estén tu racha, tus monedas y tus sellos. Hasta comprobarlo, no borres la app web ni sus datos.
 
-**Recordatorio:** en la APK, entra a **Ajustes › Recordatorio diario** y toca **Activar recordatorio**. Si ese día ya practicaste, no te avisa. Cuando te funcione, borra el secreto `DANZI_RECORDATORIO` en GitHub para que no te lleguen dos avisos.
+**Recordatorio:** en la APK, entra a **Ajustes › Recordatorio diario**, elige la hora y los minutos (por ejemplo, **7:43 a. m.**) y toca **Activar recordatorio**. Para cambiar un aviso activo, elige el nuevo horario y toca **Guardar hora**. Si ese día ya practicaste, no te avisa. Los horarios anteriores se conservan con los minutos en `00`. Cuando te funcione, borra el secreto `DANZI_RECORDATORIO` en GitHub para que no te lleguen dos avisos.
 
 **Voz:** la APK usa los motores de voz de Android. Si en **Hablar** aparece «Falta la voz en chino», toca **Instalar la voz en chino** y descarga la voz en chino (China). El reconocimiento de voz usa la app de Google.
 

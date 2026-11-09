@@ -65,14 +65,15 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
   - `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
   - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
-- Sincronización entre dispositivos (Supabase, cuenta con código por correo):
+- Sincronización entre dispositivos (Supabase, cuenta con correo y contraseña):
   - `src/lib/sync.ts`: junta dos progresos (`mergeProgress`), funciones puras. Con la base de la última sincronización junta en tres vías: cada tarjeta queda con su repaso más reciente; contadores, monedas y protectores suman lo que cambió en cada lado; sellos, sobres, días salvados y temas se unen; los ajustes salen del lado que los cambió. Sin base (la primera vez), toma lo mayor de cada lado.
   - `src/lib/cloudSync.ts`: el motor (`syncProgress`). La nube guarda una fila por cuenta con un número de revisión; solo se sube si la fila sigue en la revisión leída, así dos dispositivos no se pisan. Antes de cada subida guarda el progreso y la base juntos, para que nada se pierda ni se cuente dos veces si la app se cierra en medio. No sabe de Supabase: recibe un «backend» (las pruebas usan uno en memoria).
-  - `src/lib/cloud.ts`: Supabase. Entrar con el código, cerrar sesión y cuándo sincronizar (al abrir y al volver a la app, al salir con cambios, 30 s después de practicar y al volver el internet). Se carga con `import()` solo si hay sesión guardada o al pedir el código, así que la app sin cuenta no descarga Supabase.
+  - `src/lib/cloud.ts`: Supabase. Entrar o crear la cuenta, cerrar sesión y cuándo sincronizar (al abrir y al volver a la app, al salir con cambios, 30 s después de practicar y al volver el internet). Se carga con `import()` solo si hay sesión guardada o al entrar o crear la cuenta, así que la app sin cuenta no descarga Supabase.
+  - Supabase no manda correos: el proyecto tiene «Confirm email» apagado, así que crear la cuenta ya inicia la sesión. Por eso no hay SMTP ni plantillas de correo, y una contraseña olvidada la cambia quien administra el proyecto (consulta en el README). No agregues nada que dependa de que Supabase mande correos.
   - `src/lib/cloudConfig.ts`: la parte liviana, que usan App y Ajustes: configuración (`__DANZI_NUBE__`, de `supabase/config.json`), estado de la cuenta y mensajes de error. Los protectores de racha esperan a la primera sincronización al abrir (`ready`), porque la práctica que falta pudo ser en otro dispositivo.
   - `src/components/SyncPanel.tsx`: Ajustes › Tu cuenta. Solo aparece si `supabase/config.json` tiene proyecto.
-  - Lo que el dispositivo recuerda de la última sincronización va en IndexedDB con la clave `sincronizacion`, fuera de `Progress`. La sesión de Supabase va en localStorage (`danzi-sesion`) y el código que se está esperando en `danzi-codigo`.
-  - `supabase/schema.sql` (tabla `progreso`, reglas de acceso y revisión), `supabase/correo-codigo.html` (plantilla del correo) y `supabase/config.json` (dirección y llave publicable del proyecto). Cómo se configura está en el README.
+  - Lo que el dispositivo recuerda de la última sincronización va en IndexedDB con la clave `sincronizacion`, fuera de `Progress`. La sesión de Supabase va en localStorage (`danzi-sesion`).
+  - `supabase/schema.sql` (tabla `progreso`, reglas de acceso y revisión) y `supabase/config.json` (dirección y llave publicable del proyecto). Cómo se configura está en el README.
 
 ## Reglas que no se rompen
 
@@ -198,9 +199,9 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
   Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
 - Actualización automática en el navegador: compila con `DANZI_VERSION=<número>` y simula `CapacitorUpdater` (`notifyAppReady`, `getFailedUpdate`, `getBuiltinVersion` con `{ version: '1.<número>' }`, `getNextBundle`, `download`, `next`) y `CapacitorHttp.get`, que devuelve el `actualizacion.json` de cada caso. Para recargar con el `addInitScript` puesto, cambia algo más que el `#` de la dirección (por ejemplo `?r=1#ajustes`): si solo cambia el `#`, la página no se recarga.
 - Sincronización en el navegador: desde aquí no se llega a Supabase. Compila con `DANZI_SUPABASE_URL=https://<algo>.supabase.co` y `DANZI_SUPABASE_KEY=<algo>` y responde con `page.route`, como Supabase:
-  - Auth: `POST /auth/v1/otp`, `POST /auth/v1/verify` (devuelve la sesión: `access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`), `POST /auth/v1/token` y `POST /auth/v1/logout`. Los errores llevan `error_code` (por ejemplo `otp_expired`) y `msg`.
+  - Auth: `POST /auth/v1/signup` (crear la cuenta) y `POST /auth/v1/token?grant_type=password` (entrar) devuelven la sesión (`access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`); además `POST /auth/v1/token?grant_type=refresh_token` y `POST /auth/v1/logout`. Los errores llevan `error_code` (por ejemplo `invalid_credentials` o `user_already_exists`) y `msg`.
   - Tabla: `GET /rest/v1/progreso?select=rev&user_id=eq.<id>` (solo la revisión), `GET …?select=datos,rev…`, `POST` (crear; 409 con código `23505` si ya existe) y `PATCH …&rev=eq.<n>&select=rev` (devuelve `[]` si la revisión cambió).
-  - Para entrar sin pasar por el código, guarda la sesión en localStorage (`danzi-sesion`) antes de recargar.
+  - Para entrar sin pasar por el formulario, guarda la sesión en localStorage (`danzi-sesion`) antes de recargar.
 - Danzi Pruebas en el navegador: compila con `DANZI_VERSION`, `DANZI_PR` y `DANZI_HUELLA` (64 caracteres hexadecimales), usa `getBuiltinVersion` con `'1.<número>-pruebas'` y responde en `CapacitorHttp.get` la lista de `https://api.github.com/repos/alejo452/Danzi/releases` y el `actualizacion.json` de cada `pruebas-pr-<número>` (o un 404). Simula también `set` y `reset`.
 
 ## Pendiente (ideas acordadas, en orden)

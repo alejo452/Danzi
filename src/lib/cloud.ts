@@ -1,6 +1,9 @@
-// Sincronización con Supabase: la cuenta (código por correo) y cuándo sincronizar. Qué subir y qué bajar lo decide
+// Sincronización con Supabase: la cuenta (correo y contraseña) y cuándo sincronizar. Qué subir y qué bajar lo decide
 // src/lib/cloudSync.ts. Este archivo se carga aparte (import()), solo si hay un proyecto configurado y una sesión
-// guardada, o cuando la persona pide el código en Ajustes.
+// guardada, o cuando la persona entra o crea su cuenta en Ajustes.
+//
+// La cuenta es un correo y una contraseña. Supabase no manda ningún correo: en el proyecto, «Confirm email» está
+// apagado (README), así que crear la cuenta ya inicia la sesión.
 //
 // Cuándo se sincroniza, con la sesión iniciada:
 // - Al abrir la app y al volver a ella (si no se acaba de hacer), y al volver el internet.
@@ -10,11 +13,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { del, get } from 'idb-keyval';
 import {
   authErrorMessage,
-  clearPendingCode,
   CLOUD,
   getCloudState,
   isOfflineError,
-  savePendingCode,
   SESSION_KEY,
   setCloudState,
   storedSession,
@@ -240,7 +241,7 @@ async function signedOut(message: string): Promise<void> {
   dirty = false;
   // Si se vuelve a entrar, se junta sin base: así no se borra en la cuenta lo que se borró aquí sin sesión.
   await forgetMeta();
-  setCloudState({ phase: 'fuera', email: '', codeAt: 0, syncing: false, lastSync: 0, error: message, ready: true });
+  setCloudState({ phase: 'fuera', email: '', syncing: false, lastSync: 0, error: message, ready: true });
 }
 
 /** Al abrir la app con una sesión guardada: sincroniza y queda atento a los cambios. */
@@ -250,30 +251,35 @@ export function startCloud(): void {
   void syncNow();
 }
 
-/** Manda el código al correo. Si el correo no tiene cuenta, se crea. Falla con un mensaje para mostrar. */
-export async function sendCode(email: string): Promise<void> {
-  const { error } = await supabase().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  if (error) throw new Error(authErrorMessage(error));
-  const at = Date.now();
-  savePendingCode(email, at);
-  setCloudState({ phase: 'codigo', email, codeAt: at, error: '' });
+/** La sesión empezó en este dispositivo: la primera sincronización junta lo de aquí con lo de la cuenta. */
+async function started(email: string): Promise<void> {
+  await forgetMeta();
+  setCloudState({ phase: 'dentro', email, lastSync: 0, error: '', ready: true });
+  startTriggers();
+  void syncNow();
 }
 
-/** Entra con el código que llegó al correo y hace la primera sincronización. Falla con un mensaje para mostrar. */
-export async function verifyCode(code: string): Promise<void> {
-  const { email } = getCloudState();
+/** Entra con el correo y la contraseña. Falla con un mensaje para mostrar. */
+export async function signIn(email: string, password: string): Promise<void> {
   let failed: unknown;
   try {
-    const { data, error } = await supabase().auth.verifyOtp({ email, token: code, type: 'email' });
-    if (!error && data.session) {
-      clearPendingCode();
-      await forgetMeta();
-      setCloudState({ phase: 'dentro', email: data.session.user.email ?? email, codeAt: 0, lastSync: 0, error: '', ready: true });
-      startTriggers();
-      void syncNow();
-      return;
-    }
+    const { data, error } = await supabase().auth.signInWithPassword({ email, password });
+    if (!error && data.session) return await started(data.session.user.email ?? email);
     failed = error;
+  } catch (e) {
+    failed = e;
+  }
+  throw new Error(authErrorMessage(failed));
+}
+
+/** Crea la cuenta y entra. Falla con un mensaje para mostrar. */
+export async function signUp(email: string, password: string): Promise<void> {
+  let failed: unknown;
+  try {
+    const { data, error } = await supabase().auth.signUp({ email, password });
+    if (!error && data.session) return await started(data.session.user.email ?? email);
+    // Sin sesión, Supabase está esperando que se confirme el correo: falta apagar «Confirm email».
+    failed = error ?? { code: 'email_not_confirmed' };
   } catch (e) {
     failed = e;
   }

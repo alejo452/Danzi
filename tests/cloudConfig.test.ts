@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   authErrorMessage,
-  CODE_VALID_MS,
-  cleanCode,
   cleanEmail,
-  clearPendingCode,
   isOfflineError,
-  readPendingCode,
-  savePendingCode,
+  MAX_PASSWORD,
+  MIN_PASSWORD,
+  newPasswordProblem,
   SESSION_KEY,
   storedSession,
   syncedAgo,
@@ -23,12 +21,12 @@ describe('lo que escribe la persona', () => {
     expect(cleanEmail('')).toBeNull();
   });
 
-  it('acepta códigos de 6 a 10 dígitos, con espacios o guiones', () => {
-    expect(cleanCode('123456')).toBe('123456');
-    expect(cleanCode(' 123 456 ')).toBe('123456');
-    expect(cleanCode('1234-5678')).toBe('12345678');
-    expect(cleanCode('12345')).toBeNull();
-    expect(cleanCode('12345678901')).toBeNull();
+  it('pide una contraseña nueva de al menos 8 caracteres', () => {
+    expect(MIN_PASSWORD).toBe(8);
+    expect(newPasswordProblem('mandarín8')).toBe('');
+    expect(newPasswordProblem('corta1')).toMatch(/al menos 8/);
+    expect(newPasswordProblem('x'.repeat(MAX_PASSWORD + 1))).toMatch(/máximo 72/);
+    expect(newPasswordProblem(' conespacio ')).toMatch(/espacio/);
   });
 });
 
@@ -45,7 +43,7 @@ describe('cuándo fue la última sincronización', () => {
   });
 });
 
-describe('sesión y código guardados en el dispositivo', () => {
+describe('sesión guardada en el dispositivo', () => {
   const store = new Map<string, string>();
   beforeEach(() => {
     store.clear();
@@ -67,20 +65,9 @@ describe('sesión y código guardados en el dispositivo', () => {
     expect(storedSession()).toBeNull();
   });
 
-  it('recuerda el código pedido durante una hora', () => {
-    const at = 1_000_000;
-    savePendingCode('diego@gmail.com', at);
-    expect(readPendingCode(at + 1000)).toEqual({ email: 'diego@gmail.com', at });
-    expect(readPendingCode(at + CODE_VALID_MS + 1)).toBeNull();
-    clearPendingCode();
-    expect(readPendingCode(at + 1000)).toBeNull();
-  });
-
   it('sin localStorage no falla', () => {
     delete (globalThis as { localStorage?: unknown }).localStorage;
     expect(storedSession()).toBeNull();
-    expect(readPendingCode()).toBeNull();
-    expect(() => savePendingCode('a@b.co', 1)).not.toThrow();
   });
 });
 
@@ -93,14 +80,18 @@ describe('mensajes de error', () => {
     expect(isOfflineError(Object.assign(new Error('x'), { code: '42501', status: 403 }))).toBe(false);
   });
 
-  it('explica qué pasó con el código y qué hacer', () => {
-    expect(authErrorMessage({ name: 'AuthApiError', status: 403, code: 'otp_expired', message: 'Token has expired or is invalid' })).toMatch(/no es correcto o ya venció/);
-    expect(authErrorMessage({ status: 429, code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' })).toBe(
-      'Espera 42 segundos para pedir otro código.',
-    );
-    expect(authErrorMessage({ status: 429, code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' })).toMatch(/hasta una hora/);
-    expect(authErrorMessage({ status: 400, code: 'email_address_not_authorized' })).toMatch(/README/);
+  it('explica qué pasó al entrar o crear la cuenta, y qué hacer', () => {
+    expect(authErrorMessage({ name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' })).toMatch(/no coinciden/);
+    expect(authErrorMessage({ status: 422, code: 'user_already_exists', message: 'User already registered' })).toMatch(/Ya tengo cuenta/);
+    expect(authErrorMessage({ name: 'AuthWeakPasswordError', status: 422, code: 'weak_password' })).toMatch(/fácil de adivinar/);
     expect(authErrorMessage({ status: 400, code: 'email_address_invalid' })).toMatch(/bien escrito/);
+    expect(authErrorMessage({ status: 422, code: 'validation_failed', message: 'Unable to validate email address: invalid format' })).toMatch(/bien escrito/);
+    expect(authErrorMessage({ status: 422, code: 'validation_failed', message: 'Password should be at least 6 characters.' })).toMatch(/al menos 8/);
+    // Si el proyecto todavía pide confirmar el correo, remite al README (hay que apagar «Confirm email»).
+    expect(authErrorMessage({ status: 400, code: 'email_not_confirmed' })).toMatch(/README/);
+    expect(authErrorMessage({ status: 400, code: 'email_address_not_authorized' })).toMatch(/README/);
+    expect(authErrorMessage({ status: 403, code: 'signup_disabled' })).toMatch(/Ya tengo cuenta/);
+    expect(authErrorMessage({ status: 429, code: 'over_request_rate_limit' })).toMatch(/muchos intentos/);
     expect(authErrorMessage(new TypeError('Failed to fetch'))).toMatch(/conexión/);
     expect(authErrorMessage({ status: 500, code: 'unexpected_failure' })).toMatch(/no respondió/);
   });

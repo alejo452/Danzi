@@ -113,3 +113,25 @@ describe('workflow android.yml: firma de la APK', () => {
     expect(publish, 'publica antes de comprobar la huella').toBeGreaterThan(check);
   });
 });
+
+describe('workflow android.yml: actualización automática', () => {
+  const wf = parse(fs.readFileSync(path.join(dir, 'android.yml'), 'utf8')) as Workflow;
+  const jobs = wf.jobs ?? {};
+
+  it('la app web sabe su número de versión, el mismo de la APK', () => {
+    for (const id of ['pruebas', 'publicar']) {
+      const build = (jobs[id]?.steps ?? []).find((st) => st.run?.trim() === 'npm run build');
+      expect(build?.env?.DANZI_VERSION, `${id}: falta DANZI_VERSION al compilar`).toBe('${{ github.run_number }}');
+    }
+  });
+
+  it('publica la parte web y su aviso junto a la APK', () => {
+    const steps = jobs.publicar?.steps ?? [];
+    const prepare = steps.findIndex((st) => st.run?.includes('scripts/update-manifest.mjs'));
+    const publish = steps.findIndex((st) => st.run?.includes('gh release create'));
+    expect(prepare, 'falta el paso que prepara actualizacion.json').toBeGreaterThan(-1);
+    expect(publish).toBeGreaterThan(prepare);
+    expect(steps[prepare].run).toContain('danzi-web.zip');
+    for (const asset of ['danzi.apk', 'danzi-web.zip', 'actualizacion.json']) expect(steps[publish].run).toContain(` ${asset}`);
+  });
+});

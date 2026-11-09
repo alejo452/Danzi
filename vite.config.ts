@@ -5,8 +5,13 @@ import { VitePWA } from 'vite-plugin-pwa';
 // En GitHub Pages la app vive en /<nombre-del-repo>/. El workflow define BASE_PATH.
 const base = process.env.BASE_PATH || '/';
 
+// Número de versión de la parte web (android.yml lo define con el número de ejecución). La APK lo usa para
+// saber si hay una versión más nueva (src/native/updates.ts). En las compilaciones locales vale 0.
+const danziVersion = Number.parseInt(process.env.DANZI_VERSION ?? '', 10) || 0;
+
 export default defineConfig({
   base,
+  define: { __DANZI_VERSION__: JSON.stringify(danziVersion) },
   build: {
     rollupOptions: {
       output: {
@@ -14,7 +19,7 @@ export default defineConfig({
         // queda en archivos aparte. Se llaman native-*.js para que el service worker de la versión web
         // no los guarde (globIgnores). No usar manualChunks: arrastra módulos compartidos a esos archivos.
         chunkFileNames: (chunk) =>
-          chunk.moduleIds.some((id) => /[\\/]src[\\/]native[\\/]|[\\/]node_modules[\\/]@capacitor/.test(id))
+          chunk.moduleIds.some((id) => /[\\/]src[\\/]native[\\/]|[\\/]node_modules[\\/]@(capacitor|capgo)[\\/-]/.test(id))
             ? 'assets/native-[name]-[hash].js'
             : 'assets/[name]-[hash].js',
       },

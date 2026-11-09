@@ -8,6 +8,8 @@ name: APK de Android
 #   normal con su propio progreso. Queda como artefacto del workflow, para probarla antes de fusionar.
 # La llave solo llega al paso que compila la APK normal. Antes de publicar se comprueba que la APK quedó
 # firmada con la llave de siempre (android/firma-sha256.txt): con otra, Android no la deja instalar encima.
+# Junto a la APK se publican la parte web (danzi-web.zip) y el aviso actualizacion.json: con ellos, la APK
+# instalada se actualiza sola sin reinstalar (src/native/updates.ts), salvo cuando cambia la parte de Android.
 
 on:
   push:
@@ -41,7 +43,10 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm ci
-      - run: npm run build
+      - name: Compilar la app web
+        env:
+          DANZI_VERSION: ${{ github.run_number }}
+        run: npm run build
       - run: npx cap sync android
       - name: Compilar Danzi Pruebas
         working-directory: android
@@ -74,7 +79,11 @@ jobs:
           cache: gradle
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - name: Compilar la app web
+        env:
+          # La misma versión de la APK (1.<número>): la app la usa para saber si hay una versión más nueva.
+          DANZI_VERSION: ${{ github.run_number }}
+        run: npm run build
       - run: npx cap sync android
       - name: Compilar Danzi firmada
         working-directory: android
@@ -101,6 +110,17 @@ jobs:
             exit 1
           fi
           mv android/app/build/outputs/apk/release/app-release.apk danzi.apk
+      - name: Preparar la actualización automática
+        env:
+          N: ${{ github.run_number }}
+        run: |
+          # La parte web de esta versión (la misma que va dentro de la APK) y su aviso. El aviso de la versión
+          # anterior dice si cambió la parte de Android: si no cambió, las APK instaladas la reciben solas.
+          (cd dist && zip -qr -X ../danzi-web.zip .)
+          curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/actualizacion.json" -o anterior.json || rm -f anterior.json
+          node scripts/update-manifest.mjs "$N" danzi-web.zip anterior.json > actualizacion.json
+          cat actualizacion.json
+          ls -l danzi-web.zip
       - name: Publicar en Releases
         env:
           GH_TOKEN: ${{ github.token }}
@@ -109,7 +129,10 @@ jobs:
           # En un merge, la segunda línea del mensaje es el título del pull request.
           cambios="$(git log -1 --format=%b | sed -n '1p')"
           [ -n "$cambios" ] || cambios="$(git log -1 --format=%s)"
-          notas="Para instalarla o actualizarla desde el celular, toca danzi.apk aquí abajo. Si ya tienes Danzi, se instala encima sin perder el progreso. Nunca la desinstales: desinstalarla borra el progreso.
+          minima="$(node -p 'require("./actualizacion.json").apkMinima')"
+          notas="Si ya tienes Danzi 1.${minima} o una más reciente, no hace falta descargar nada: se actualiza sola al abrirla.
+
+          Para instalarla o actualizarla desde el celular, toca danzi.apk aquí abajo. Si ya tienes Danzi, se instala encima sin perder el progreso. Nunca la desinstales: desinstalarla borra el progreso.
 
           Cambios: ${cambios}"
-          gh release create "android-$N" danzi.apk --target "$GITHUB_SHA" --latest --title "Danzi para Android · versión 1.$N" --notes "$notas"
+          gh release create "android-$N" danzi.apk danzi-web.zip actualizacion.json --target "$GITHUB_SHA" --latest --title "Danzi para Android · versión 1.$N" --notes "$notas"

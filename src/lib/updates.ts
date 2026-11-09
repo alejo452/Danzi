@@ -3,8 +3,14 @@
 // Aquí van las funciones puras; el código que habla con el celular está en src/native/updates.ts.
 
 const RELEASES = 'https://github.com/alejo452/Danzi/releases';
+/** La API de GitHub para Releases. Responde rápido; la dirección de descarga de la web a veces tarda más de 10 s y
+ * GitHub corta con 504. Sin cuenta deja 60 consultas por hora: si se acaban, se usa la de la web. */
+const API = 'https://api.github.com/repos/alejo452/Danzi/releases';
+const ASSET_API = `${API}/assets/`;
 
-/** El aviso de la versión más reciente. */
+/** La versión más reciente de la app normal, por la API (con la lista de sus archivos). */
+export const LATEST_RELEASE_API = `${API}/latest`;
+/** El aviso de la versión más reciente, por la web (si la API no responde). */
 export const MANIFEST_URL = `${RELEASES}/latest/download/actualizacion.json`;
 /** La APK más reciente, para cuando la versión nueva necesita instalarla. */
 export const APK_URL = `${RELEASES}/latest/download/danzi.apk`;
@@ -80,7 +86,9 @@ export function decideUpdate(manifest: UpdateManifest, webVersion: number, apkVe
 // con su APK de prueba, su parte web y su aviso. La publica .github/workflows/pruebas.yml.
 
 /** Las versiones de Releases; las de prueba son preliminares con la etiqueta pruebas-pr-<número>. */
-export const TEST_RELEASES_API = 'https://api.github.com/repos/alejo452/Danzi/releases?per_page=30';
+export const TEST_RELEASES_API = `${API}?per_page=30`;
+/** La versión de prueba de un pull request, por la API (con la lista de sus archivos). */
+export const testReleaseApi = (pr: number) => `${API}/tags/pruebas-pr-${pr}`;
 export const testManifestUrl = (pr: number) => `${RELEASES}/download/pruebas-pr-${pr}/actualizacion.json`;
 export const testApkUrl = (pr: number) => `${RELEASES}/download/pruebas-pr-${pr}/danzi-pruebas.apk`;
 
@@ -199,4 +207,32 @@ export function describeUpdateError(e: unknown): string {
     .replace(/\s+/g, ' ')
     .trim();
   return text.length > 160 ? `${text.slice(0, 159)}…` : text;
+}
+
+/**
+ * Los archivos de una versión de Releases, según la API: nombre → dirección del archivo en la API. Pedida con
+ * `Accept: application/octet-stream`, esa dirección lleva enseguida al archivo. Solo acepta archivos de este
+ * repositorio. null si no es una versión.
+ */
+export function releaseAssets(data: unknown): Record<string, string> | null {
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  const assets = data && typeof data === 'object' ? (data as { assets?: unknown }).assets : undefined;
+  if (!Array.isArray(assets)) return null;
+  const out: Record<string, string> = {};
+  for (const a of assets) {
+    const { name, url } = (a ?? {}) as { name?: unknown; url?: unknown };
+    if (typeof name === 'string' && typeof url === 'string' && url.startsWith(ASSET_API) && /^\d+$/.test(url.slice(ASSET_API.length))) out[name] = url;
+  }
+  return out;
+}
+
+/** Si una dirección es de los servidores donde GitHub guarda los archivos de Releases (a donde lleva la API). */
+export function isAssetHost(url: string): boolean {
+  return /^https:\/\/(release-assets|objects)\.githubusercontent\.com\//.test(url);
 }

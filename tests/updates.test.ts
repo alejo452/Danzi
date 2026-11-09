@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   describeUpdateError,
+  isAssetHost,
+  releaseAssets,
   APK_URL,
   CHECK_EVERY_MS,
   MANIFEST_URL,
@@ -223,5 +225,44 @@ describe('detalle técnico de una actualización que falló', () => {
     expect(describeUpdateError(undefined)).toBe('error desconocido');
     expect(describeUpdateError('sin red')).toBe('sin red');
     expect(describeUpdateError({ message: 'x'.repeat(300) })).toHaveLength(160);
+  });
+});
+
+describe('archivos de una versión, por la API de GitHub', () => {
+  const API = 'https://api.github.com/repos/alejo452/Danzi/releases/assets/';
+  it('da la dirección en la API de cada archivo', () => {
+    const release = {
+      tag_name: 'android-33',
+      assets: [
+        { name: 'actualizacion.json', url: `${API}726406814`, browser_download_url: 'https://github.com/alejo452/Danzi/releases/download/android-33/actualizacion.json' },
+        { name: 'danzi-web.zip', url: `${API}726406806` },
+      ],
+    };
+    expect(releaseAssets(release)).toEqual({ 'actualizacion.json': `${API}726406814`, 'danzi-web.zip': `${API}726406806` });
+    expect(releaseAssets(JSON.stringify(release))).toEqual(releaseAssets(release));
+  });
+
+  it('solo acepta archivos de este repositorio', () => {
+    const release = {
+      assets: [
+        { name: 'actualizacion.json', url: 'https://api.github.com/repos/otra/app/releases/assets/1' },
+        { name: 'danzi-web.zip', url: `${API}12/../../otra` },
+        { name: 'danzi.apk', url: `${API}99` },
+      ],
+    };
+    expect(releaseAssets(release)).toEqual({ 'danzi.apk': `${API}99` });
+  });
+
+  it('null si no es una versión', () => {
+    expect(releaseAssets({ message: 'API rate limit exceeded' })).toBeNull();
+    expect(releaseAssets('no es json')).toBeNull();
+    expect(releaseAssets(null)).toBeNull();
+  });
+
+  it('reconoce los servidores de archivos de GitHub', () => {
+    expect(isAssetHost('https://release-assets.githubusercontent.com/github-production-release-asset/1/abc?sig=x')).toBe(true);
+    expect(isAssetHost('https://objects.githubusercontent.com/github-production-release-asset-2e65be/1')).toBe(true);
+    expect(isAssetHost('https://release-assets.githubusercontent.com.otro.com/x')).toBe(false);
+    expect(isAssetHost('http://release-assets.githubusercontent.com/x')).toBe(false);
   });
 });

@@ -49,7 +49,7 @@ describe('migración del progreso', () => {
     };
     const p = normalizeProgress(v1);
     expect(p.v).toBe(PROGRESS_VERSION);
-    expect(p.v).toBe(3);
+    expect(p.v).toBe(4);
     expect(p.decks.read['1']).toEqual(v1.decks.read['1']);
     expect(p.settings).toEqual({ ...v1.settings, dailyGoal: 20 });
     expect(p.log).toEqual(v1.log);

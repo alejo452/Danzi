@@ -6,12 +6,13 @@
 // 1. Mazos, ajustes, actividad diaria y cupo extra.
 // 2. Recompensas (monedas, sobres rojos, sellos, protectores de racha y temas) y meta diaria.
 // 3. Atuendos comprados y atuendo activo de Xi Bao.
+// 4. Tiempo de estudio y repasos recordados u olvidados de cada día (para las estadísticas).
 import { addDays, dayKey } from './dates';
 import { DEFAULT_OUTFIT, isOutfitId } from './outfits';
 import type { Deck } from './queue';
 import type { StoredCard } from './srs';
 
-export const PROGRESS_VERSION = 3;
+export const PROGRESS_VERSION = 4;
 
 export type DeckKind = 'read' | 'write';
 
@@ -29,8 +30,10 @@ export type Settings = {
 /**
  * Actividad de un día: r = tarjetas, n = palabras nuevas, w = escritura, wn = caracteres nuevos,
  * h = habla, c = monedas ganadas.
+ * Desde la versión 4, para las estadísticas: t = segundos de estudio; rr = respuestas a tarjetas que ya estaban en
+ * repaso y rf = de esas, las olvidadas («Otra vez»); wr y wf, lo mismo en escritura.
  */
-export type DayLog = { r?: number; n?: number; w?: number; wn?: number; h?: number; c?: number };
+export type DayLog = { r?: number; n?: number; w?: number; wn?: number; h?: number; c?: number; t?: number; rr?: number; rf?: number; wr?: number; wf?: number };
 
 export type Rewards = {
   /** Saldo de monedas. */
@@ -145,6 +148,7 @@ export function normalizeProgress(raw: unknown): Progress {
       // Versión 1 no tenía meta diaria.
       dailyGoal: count(settings.dailyGoal) || f.settings.dailyGoal,
     } as Settings,
+    // Versión 4 solo agrega contadores opcionales a cada día (tiempo y repasos recordados): los días de antes sirven tal cual.
     log: isObject(raw.log) ? (raw.log as Record<string, DayLog>) : {},
     extra: { date: String(extra.date ?? ''), read: Number(extra.read) || 0, write: Number(extra.write) || 0 },
     // Versión 1 no tenía recompensas: se empieza en cero y los sellos ya ganados quedan por recoger.
@@ -155,8 +159,23 @@ export function normalizeProgress(raw: unknown): Progress {
 
 export function todayLog(p: Progress, now: Date): Required<DayLog> {
   const l = p.log[dayKey(now)] ?? {};
-  return { r: l.r ?? 0, n: l.n ?? 0, w: l.w ?? 0, wn: l.wn ?? 0, h: l.h ?? 0, c: l.c ?? 0 };
+  return { r: l.r ?? 0, n: l.n ?? 0, w: l.w ?? 0, wn: l.wn ?? 0, h: l.h ?? 0, c: l.c ?? 0, t: l.t ?? 0, rr: l.rr ?? 0, rf: l.rf ?? 0, wr: l.wr ?? 0, wf: l.wf ?? 0 };
 }
+
+/**
+ * Tope de segundos que cuenta una respuesta, como en Anki: desde que aparece la tarjeta, la palabra o el ejercicio
+ * hasta que se responde. Si alguien se va a mitad, no se suma todo ese rato. La escritura, con varios caracteres
+ * por palabra, tiene más margen.
+ */
+export const ANSWER_CAP_S = { read: 60, write: 120, speak: 60 } as const;
+
+/** Segundos que se cuentan para una respuesta: desde que apareció (ms) hasta ahora (ms), sin pasar del tope. */
+export function answerSeconds(startedAt: number, now: number, cap: number): number {
+  return Math.round(Math.min(cap, Math.max(0, (now - startedAt) / 1000)));
+}
+
+/** Estado «en repaso» de una tarjeta FSRS (State.Review de ts-fsrs). */
+const REVIEW_STATE = 2;
 
 /** Cuántas palabras nuevas se pueden introducir todavía hoy en ese mazo. */
 export function newLeftToday(p: Progress, kind: DeckKind, now: Date): number {
@@ -174,11 +193,28 @@ export function addCoins(p: Progress, n: number, now: Date): Progress {
   return { ...p, log: { ...p.log, [key]: l }, rewards: { ...p.rewards, coins: p.rewards.coins + n }, updatedAt: now.getTime() };
 }
 
-/** Guarda el resultado de una respuesta, suma la actividad del día y las monedas ganadas. Devuelve un progreso nuevo. */
-export function recordAnswer(p: Progress, kind: DeckKind, id: string, card: StoredCard, now: Date): Progress {
+/**
+ * Guarda el resultado de una respuesta, suma la actividad del día y las monedas ganadas. Devuelve un progreso nuevo.
+ * `seconds`: lo que tardó la respuesta (answerSeconds), para el tiempo de estudio.
+ */
+export function recordAnswer(p: Progress, kind: DeckKind, id: string, card: StoredCard, now: Date, seconds = 0): Progress {
   const key = dayKey(now);
-  const wasNew = !p.decks[kind][id];
+  const before = p.decks[kind][id];
+  const wasNew = !before;
   const l = { ...(p.log[key] ?? {}) };
+  // Para la retención solo cuentan las tarjetas que ya estaban en repaso. Responder «Otra vez» suma un olvido
+  // (lapses), así se sabe sin conocer el botón.
+  if (before?.state === REVIEW_STATE) {
+    const forgot = (card.lapses ?? 0) > (before.lapses ?? 0);
+    if (kind === 'read') {
+      l.rr = (l.rr ?? 0) + 1;
+      if (forgot) l.rf = (l.rf ?? 0) + 1;
+    } else {
+      l.wr = (l.wr ?? 0) + 1;
+      if (forgot) l.wf = (l.wf ?? 0) + 1;
+    }
+  }
+  if (seconds > 0) l.t = (l.t ?? 0) + Math.round(seconds);
   let coins = 0;
   if (kind === 'read') {
     l.r = (l.r ?? 0) + 1;
@@ -205,10 +241,12 @@ export function recordAnswer(p: Progress, kind: DeckKind, id: string, card: Stor
   };
 }
 
-export function recordSpeaking(p: Progress, now: Date): Progress {
+/** Suma un ejercicio de habla. `seconds`: lo que tardó (answerSeconds), para el tiempo de estudio. */
+export function recordSpeaking(p: Progress, now: Date, seconds = 0): Progress {
   const key = dayKey(now);
   const l = { ...(p.log[key] ?? {}) };
   l.h = (l.h ?? 0) + 1;
+  if (seconds > 0) l.t = (l.t ?? 0) + Math.round(seconds);
   const coins = l.h <= EARN.speakCap ? EARN.speak : 0;
   l.c = (l.c ?? 0) + coins;
   return { ...p, log: { ...p.log, [key]: l }, rewards: { ...p.rewards, coins: p.rewards.coins + coins }, updatedAt: now.getTime() };

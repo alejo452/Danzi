@@ -83,3 +83,8 @@ export function isLearning(c: StoredCard): boolean {
 export function isMature(c: StoredCard): boolean {
   return c.state === State.Review && c.scheduled_days >= 21;
 }
+
+/** Probabilidad (de 0 a 1) de recordar esta tarjeta en este momento, según FSRS. */
+export function recallChance(stored: StoredCard, now: Date): number {
+  return scheduler.get_retrievability(toCard(stored, now), now, false);
+}

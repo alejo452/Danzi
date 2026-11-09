@@ -4,9 +4,12 @@
 // Al abrir la app:
 // 1. Confirma que esta versión arrancó bien (notifyAppReady). Si una versión nueva no llega a confirmarlo en
 //    15 segundos, el plugin vuelve solo a la anterior; esa versión queda en la lista de fallidas y no se reintenta.
-// 2. Busca en Releases el aviso de la versión más reciente (actualizacion.json, ver src/lib/updates.ts).
-// 3. Si es más nueva y sirve para esta APK, descarga el paquete web (el plugin comprueba su SHA-256) y lo deja
-//    como siguiente: se usa la próxima vez que la app pase a segundo plano o se vuelva a abrir.
+// 2. Busca en Releases el aviso de la versión más reciente (actualizacion.json, ver src/lib/updates.ts), por la API
+//    de GitHub, que responde rápido. La dirección de descarga de la web a veces tarda más de 10 s y GitHub corta con
+//    504: solo se usa si la API falla (por ejemplo, si se acabaron las 60 consultas por hora sin cuenta).
+// 3. Si es más nueva y sirve para esta APK, descarga el paquete web por la dirección directa que da la API (el
+//    plugin comprueba su SHA-256) y lo deja como siguiente: se usa la próxima vez que la app pase a segundo plano o
+//    se vuelva a abrir.
 //    Si necesita una APK más reciente (cambió la parte de Android), Ajustes lo dice con el enlace para instalarla.
 //
 // «Danzi Pruebas» sigue la versión de prueba de un pull request (Releases pruebas-pr-<número>): la del pull request
@@ -22,6 +25,7 @@ import { get, set } from 'idb-keyval';
 import { toast } from '../lib/toasts';
 import {
   APK_URL,
+  LATEST_RELEASE_API,
   MANIFEST_URL,
   TEST_CHECK_EVERY_MS,
   TEST_RELEASES_API,
@@ -30,13 +34,16 @@ import {
   decideTestUpdate,
   decideUpdate,
   describeUpdateError,
+  isAssetHost,
   normalizeUpdateState,
   parseApkVersion,
   parseManifest,
   parseTestReleases,
+  releaseAssets,
   shouldCheck,
   testApkUrl,
   testManifestUrl,
+  testReleaseApi,
   versionLabel,
   type TestRelease,
   type UpdateManifest,
@@ -168,9 +175,13 @@ export function checkForUpdate(force: boolean): Promise<void> {
 }
 
 /** La respuesta de GitHub, o qué falló si no hubo respuesta (sin conexión, certificado, tiempo agotado…). */
-type Fetched = { status: number; data: unknown } | { error: string };
+type Fetched = { status: number; data: unknown; headers: Record<string, string> } | { error: string };
 
-async function fetchText(url: string, headers: Record<string, string> = {}): Promise<Fetched> {
+/**
+ * Pide una dirección desde el celular (sin las restricciones de la vista web). `redirects: false` no sigue la
+ * redirección: la respuesta trae a dónde llevaba (`location`).
+ */
+async function fetchText(url: string, headers: Record<string, string> = {}, { timeout = 15_000, redirects = true } = {}): Promise<Fetched> {
   let error = '';
   // Dos intentos: al abrir la app, la conexión a veces tarda un momento en estar lista.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -180,10 +191,11 @@ async function fetchText(url: string, headers: Record<string, string> = {}): Pro
         url,
         headers: { 'Cache-Control': 'no-cache', ...headers },
         responseType: 'text',
-        connectTimeout: 15_000,
-        readTimeout: 15_000,
+        connectTimeout: timeout,
+        readTimeout: timeout,
+        disableRedirects: !redirects,
       });
-      return { status: res.status, data: res.data };
+      return { status: res.status, data: res.data, headers: res.headers ?? {} };
     } catch (e) {
       error = describeUpdateError(e);
     }
@@ -191,15 +203,66 @@ async function fetchText(url: string, headers: Record<string, string> = {}): Pro
   return { error };
 }
 
-/** El aviso de la versión nueva, si GitHub lo entregó bien. */
+const API_JSON = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+/** Con este Accept, la dirección de un archivo en la API lleva al archivo. */
+const API_FILE = { Accept: 'application/octet-stream', 'X-GitHub-Api-Version': '2022-11-28' };
+
+/** Qué pasó con una respuesta de GitHub, para el detalle técnico. */
+function outcome(res: Fetched): string {
+  if ('error' in res) return res.error;
+  return res.status === 200 ? 'el aviso no tiene el formato esperado' : `GitHub respondió ${res.status}`;
+}
+
 function manifestFrom(res: Fetched): UpdateManifest | null {
   return 'error' in res || res.status !== 200 ? null : parseManifest(res.data);
 }
 
-/** Por qué no sirvió el aviso, para el detalle técnico. */
-function manifestProblem(res: Fetched): string {
-  if ('error' in res) return res.error;
-  return res.status === 200 ? 'el aviso no tiene el formato esperado' : `GitHub respondió ${res.status}`;
+type ManifestRead =
+  /** `zipApi`: la dirección del paquete web en la API, para descargarlo sin pasar por la web. */
+  | { manifest: UpdateManifest; zipApi?: string }
+  /** Esa versión no está en Releases (por ejemplo, la de prueba de un pull request que ya se cerró). */
+  | { missing: true }
+  | { problem: string };
+
+/**
+ * El aviso de una versión de Releases. Primero por la API de GitHub, que responde rápido. Si falla (por ejemplo,
+ * porque se acabaron las 60 consultas por hora sin cuenta), por la dirección de la web: es la misma de siempre,
+ * pero GitHub a veces tarda más de 10 s en ella y corta con 504.
+ */
+async function readManifest(releaseApi: string, webUrl: string): Promise<ManifestRead> {
+  let apiProblem: string;
+  const release = await fetchText(releaseApi, API_JSON);
+  if ('error' in release) apiProblem = release.error;
+  else if (release.status === 404) return { missing: true };
+  else if (release.status !== 200) apiProblem = `GitHub respondió ${release.status}`;
+  else {
+    const assets = releaseAssets(release.data);
+    const file = assets?.['actualizacion.json'];
+    if (!assets || !file) apiProblem = 'la versión no trae el aviso';
+    else {
+      const res = await fetchText(file, API_FILE);
+      const manifest = manifestFrom(res);
+      if (manifest) return { manifest, zipApi: assets['danzi-web.zip'] };
+      apiProblem = outcome(res);
+    }
+  }
+  const web = await fetchText(webUrl, {}, { timeout: 30_000 });
+  const manifest = manifestFrom(web);
+  if (manifest) return { manifest };
+  if (!('error' in web) && web.status === 404) return { missing: true };
+  return { problem: `API: ${apiProblem}. Web: ${outcome(web)}.` };
+}
+
+/**
+ * La dirección directa del paquete web, a donde lleva la API (release-assets.githubusercontent.com): así el plugin
+ * no pasa por la web de GitHub. Si no se puede, la del aviso, que el plugin también sigue (más lento).
+ */
+async function bundleUrl(manifest: UpdateManifest, zipApi?: string): Promise<string> {
+  if (!zipApi) return manifest.url;
+  const res = await fetchText(zipApi, API_FILE, { redirects: false });
+  if ('error' in res || res.status < 300 || res.status >= 400) return manifest.url;
+  const location = Object.entries(res.headers).find(([name]) => name.toLowerCase() === 'location')?.[1];
+  return typeof location === 'string' && isAssetHost(location) ? location : manifest.url;
 }
 
 /** La versión descargada que espera para la próxima vez (0 si no hay). */
@@ -213,14 +276,16 @@ async function pendingBundle(): Promise<{ id: string; version: number } | null> 
  * Descarga el paquete web. `apply`: usarlo ya (la app se recarga); si no, queda para la próxima vez.
  * Devuelve vacío si salió bien, o el detalle técnico de qué falló.
  */
-async function install(manifest: UpdateManifest, pending: { id: string } | null, apply: boolean): Promise<string> {
+async function install(manifest: UpdateManifest, zipApi: string | undefined, pending: { id: string } | null, apply: boolean): Promise<string> {
   // Hasta dónde llegó, según el plugin: hasta 70 % es la descarga; 71 %, la huella SHA-256; de 75 % a 90 %, descomprimir.
   let percent = 0;
   const progress = await CapacitorUpdater.addListener('download', (e) => {
     percent = Math.max(percent, Number(e?.percent) || 0);
   }).catch(() => null);
+  // El plugin comprueba la huella SHA-256 del aviso, venga de donde venga el paquete.
+  const url = await bundleUrl(manifest, zipApi);
   try {
-    const bundle = await CapacitorUpdater.download({ url: manifest.url, version: String(manifest.version), checksum: manifest.sha256 });
+    const bundle = await CapacitorUpdater.download({ url, version: String(manifest.version), checksum: manifest.sha256 });
     // La versión que esperaba antes ya no hace falta.
     if (pending && pending.id !== bundle.id) await CapacitorUpdater.delete({ id: pending.id }).catch(() => undefined);
     if (apply) await CapacitorUpdater.set({ id: bundle.id });
@@ -228,8 +293,9 @@ async function install(manifest: UpdateManifest, pending: { id: string } | null,
     return '';
   } catch (e) {
     // La misma dirección por otro camino: si responde, la red está bien y el problema es el paquete o el plugin.
-    const direct = await fetchText(manifest.url, { Range: 'bytes=0-15' });
-    return `${describeUpdateError(e)} (llegó al ${percent} %). Descarga directa: ${'error' in direct ? direct.error : `responde ${direct.status}`}.`;
+    const direct = await fetchText(url, { Range: 'bytes=0-15' });
+    const via = url === manifest.url ? 'por la web' : 'directa';
+    return `${describeUpdateError(e)} (${via}, llegó al ${percent} %). Prueba por otro camino: ${'error' in direct ? direct.error : `responde ${direct.status}`}.`;
   } finally {
     await progress?.remove().catch(() => undefined);
   }
@@ -245,12 +311,13 @@ async function check(force: boolean): Promise<void> {
   const waiting = pending && pending.version > WEB_VERSION ? pending.version : 0;
   if (!waiting) setStatus({ kind: 'revisando' });
 
-  const res = await fetchText(MANIFEST_URL);
-  const manifest = manifestFrom(res);
-  if (!manifest) {
-    setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'sin-conexion', detalle: manifestProblem(res) });
+  const read = await readManifest(LATEST_RELEASE_API, MANIFEST_URL);
+  if (!('manifest' in read)) {
+    const detalle = 'problem' in read ? read.problem : 'GitHub no tiene publicado el aviso de la versión más reciente.';
+    setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'sin-conexion', detalle });
     return;
   }
+  const { manifest, zipApi } = read;
   state = { ...(await loadState()), revisada: now };
   await saveState(state);
 
@@ -261,7 +328,7 @@ async function check(force: boolean): Promise<void> {
   if (waiting >= manifest.version) return setStatus({ kind: 'lista', version: waiting });
 
   setStatus({ kind: 'descargando', version: manifest.version });
-  const problem = await install(manifest, pending, false);
+  const problem = await install(manifest, zipApi, pending, false);
   if (!problem) setStatus({ kind: 'lista', version: manifest.version });
   else setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'descarga-fallida', version: manifest.version, detalle: problem });
 }
@@ -276,10 +343,10 @@ async function checkTest(force: boolean, apply: boolean): Promise<void> {
 
   const pending = await pendingBundle();
   setStatus({ kind: 'revisando' });
-  const res = await fetchText(testManifestUrl(pr));
-  if (!('error' in res) && res.status === 404) return setStatus({ kind: 'sin-version-prueba', pr });
-  const manifest = manifestFrom(res);
-  if (!manifest) return setStatus({ kind: 'sin-conexion', detalle: manifestProblem(res) });
+  const read = await readManifest(testReleaseApi(pr), testManifestUrl(pr));
+  if ('missing' in read) return setStatus({ kind: 'sin-version-prueba', pr });
+  if ('problem' in read) return setStatus({ kind: 'sin-conexion', detalle: read.problem });
+  const { manifest, zipApi } = read;
   state = { ...(await loadState()), revisada: now };
   await saveState(state);
 
@@ -292,14 +359,14 @@ async function checkTest(force: boolean, apply: boolean): Promise<void> {
   if (!apply && pending?.version === manifest.version) return setStatus({ kind: 'lista', version: manifest.version, pr });
 
   setStatus({ kind: 'descargando', version: manifest.version, pr });
-  const problem = await install(manifest, pending, apply);
+  const problem = await install(manifest, zipApi, pending, apply);
   if (problem) return setStatus({ kind: 'descarga-fallida', version: manifest.version, detalle: problem, pr });
   setStatus(apply ? { kind: 'aplicando', version: manifest.version, pr } : { kind: 'lista', version: manifest.version, pr });
 }
 
 /** «Danzi Pruebas»: los pull requests abiertos con versión de prueba. null si no se pudo cargar la lista. */
 export async function listTestReleases(): Promise<TestRelease[] | null> {
-  const res = await fetchText(TEST_RELEASES_API, { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' });
+  const res = await fetchText(TEST_RELEASES_API, API_JSON);
   return 'error' in res || res.status !== 200 ? null : parseTestReleases(res.data);
 }
 

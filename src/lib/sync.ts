@@ -33,7 +33,7 @@ const same = (a: unknown, b: unknown) => stableStringify(a) === stableStringify(
 
 /** Si dos progresos tienen el mismo contenido. */
 export function sameProgress(a: Progress, b: Progress): boolean {
-  return same(a, b);
+  return a === b || same(a, b);
 }
 
 const time = (iso?: string) => {

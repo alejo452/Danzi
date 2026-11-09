@@ -184,7 +184,7 @@ export function isOfflineError(e: unknown): boolean {
 }
 
 const OFFLINE = 'No hay conexión a internet. Revisa tu conexión y vuelve a intentarlo.';
-const SETUP = 'Pídele a quien administra Danzi que revise la configuración de la nube (README, «Sincronización»).';
+const SETUP = 'Pídele a quien administra Danzi que revise la configuración de la nube (README, «Sincronizar entre dispositivos»).';
 
 /** Qué decirle a la persona cuando falla pedir o usar el código. */
 export function authErrorMessage(e: unknown): string {

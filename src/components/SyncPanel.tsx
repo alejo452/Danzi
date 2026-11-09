@@ -16,6 +16,7 @@ export function SyncPanel() {
 
   // La cuenta regresiva para pedir otro código y el «hace 5 min» de la última sincronización.
   useEffect(() => {
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), s.phase === 'codigo' ? 1000 : 30_000);
     return () => clearInterval(t);
   }, [s.phase]);
@@ -91,7 +92,7 @@ export function SyncPanel() {
       </form>
     );
   } else if (s.phase === 'codigo') {
-    const wait = Math.ceil((s.codeAt + CODE_RESEND_MS - now) / 1000);
+    const wait = Math.min(CODE_RESEND_MS / 1000, Math.ceil((s.codeAt + CODE_RESEND_MS - now) / 1000));
     body = (
       <>
         <form onSubmit={onCode}>
@@ -114,12 +115,10 @@ export function SyncPanel() {
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
         </form>
         <p className="note">Si no te llega en unos minutos, revisa la carpeta de spam o pide otro código.</p>
-        <div className="two">
-          <button type="button" className="btn-line" disabled={busy} onClick={() => (cancelCode(), setMessage(''))}>Cambiar el correo</button>
-          <button type="button" className="btn-line" disabled={busy || wait > 0} onClick={() => send(s.email)}>
-            {wait > 0 ? `Otro código en ${wait} s` : 'Enviar otro código'}
-          </button>
-        </div>
+        <button type="button" className="btn-line" disabled={busy || wait > 0} onClick={() => send(s.email)}>
+          {wait > 0 ? `Enviar otro código (en ${wait} s)` : 'Enviar otro código'}
+        </button>
+        <button type="button" className="btn-line" disabled={busy} onClick={() => (cancelCode(), setMessage(''))}>Cambiar el correo</button>
       </>
     );
   } else {
@@ -130,10 +129,8 @@ export function SyncPanel() {
           {s.syncing ? 'Sincronizando…' : s.lastSync ? `Última sincronización: ${syncedAgo(s.lastSync, now)}.` : 'Todavía no se ha sincronizado.'}
         </p>
         {s.error && !s.syncing && <p className="warn" role="status">{s.error}</p>}
-        <div className="two">
-          <button type="button" className="btn-line" disabled={busy || s.syncing} onClick={syncNow}>Sincronizar ahora</button>
-          <button type="button" className="btn-line" disabled={busy} onClick={signOut}>Cerrar sesión</button>
-        </div>
+        <button type="button" className="btn-line" disabled={busy || s.syncing} onClick={syncNow}>Sincronizar ahora</button>
+        <button type="button" className="btn-line" disabled={busy} onClick={signOut}>Cerrar sesión</button>
         <p className="note">Se sincroniza solo al abrir y al cerrar Danzi, y mientras practicas. El recordatorio diario es de cada dispositivo.</p>
       </>
     );

@@ -65,12 +65,21 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
   - `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
   - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
+- Sincronización entre dispositivos (Supabase, cuenta con código por correo):
+  - `src/lib/sync.ts`: junta dos progresos (`mergeProgress`), funciones puras. Con la base de la última sincronización junta en tres vías: cada tarjeta queda con su repaso más reciente; contadores, monedas y protectores suman lo que cambió en cada lado; sellos, sobres, días salvados y temas se unen; los ajustes salen del lado que los cambió. Sin base (la primera vez), toma lo mayor de cada lado.
+  - `src/lib/cloudSync.ts`: el motor (`syncProgress`). La nube guarda una fila por cuenta con un número de revisión; solo se sube si la fila sigue en la revisión leída, así dos dispositivos no se pisan. Antes de cada subida guarda el progreso y la base juntos, para que nada se pierda ni se cuente dos veces si la app se cierra en medio. No sabe de Supabase: recibe un «backend» (las pruebas usan uno en memoria).
+  - `src/lib/cloud.ts`: Supabase. Entrar con el código, cerrar sesión y cuándo sincronizar (al abrir y al volver a la app, al salir con cambios, 30 s después de practicar y al volver el internet). Se carga con `import()` solo si hay sesión guardada o al pedir el código, así que la app sin cuenta no descarga Supabase.
+  - `src/lib/cloudConfig.ts`: la parte liviana, que usan App y Ajustes: configuración (`__DANZI_NUBE__`, de `supabase/config.json`), estado de la cuenta y mensajes de error. Los protectores de racha esperan a la primera sincronización al abrir (`ready`), porque la práctica que falta pudo ser en otro dispositivo.
+  - `src/components/SyncPanel.tsx`: Ajustes › Tu cuenta. Solo aparece si `supabase/config.json` tiene proyecto.
+  - Lo que el dispositivo recuerda de la última sincronización va en IndexedDB con la clave `sincronizacion`, fuera de `Progress`. La sesión de Supabase va en localStorage (`danzi-sesion`) y el código que se está esperando en `danzi-codigo`.
+  - `supabase/schema.sql` (tabla `progreso`, reglas de acceso y revisión), `supabase/correo-codigo.html` (plantilla del correo) y `supabase/config.json` (dirección y llave publicable del proyecto). Cómo se configura está en el README.
 
 ## Reglas que no se rompen
 
 1. **El progreso es del usuario.** Vive en IndexedDB y no se puede recuperar si se pierde.
    - Las tarjetas se identifican por el `id` del temario. Nunca cambies ni reutilices un `id`.
    - Si cambias el formato de `Progress`, sube `PROGRESS_VERSION` y agrega la migración en `normalizeProgress`. Agrega también una prueba que convierta datos del formato anterior.
+   - Cada campo nuevo de `Progress` necesita su regla para juntarse en `mergeProgress` (`src/lib/sync.ts`), con su prueba. Si no, la sincronización lo pierde.
 2. **Los datos de un nivel solo entran a `src/data/hsk/` completos.** Las pruebas de `tests/data.test.ts` exigen cuatro cosas:
    - Que estén exactamente las palabras del temario para ese nivel, con su hanzi, pinyin y categoría sin cambios.
    - Que cada palabra tenga significado en español y un ejemplo completo (`zh`, `py`, `es`) que la use.
@@ -89,6 +98,11 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
    - Las estadísticas y búsquedas de Capgo están apagadas (`statsUrl`, `updateUrl` y `channelUrl` vacíos en `capacitor.config.ts`). No las actives: mandarían datos del celular a un servidor ajeno.
    - La llave de pruebas (`.github/pruebas/danzi-pruebas.p12`) es pública a propósito: solo firma «Danzi Pruebas», que tiene su propio progreso de prueba. Nunca firmes la app normal con ella, y no la cambies: las «Danzi Pruebas» instaladas dejarían de actualizarse encima.
 8. **La versión web no carga código de la APK.** Lo de Android va en `src/native/` y se importa con `import()` detrás de `isNative`. `vite.config.ts` nombra esos archivos `native-*.js` y el service worker no los guarda. No uses `manualChunks`: arrastra módulos compartidos a esos archivos y la web los cargaría al abrir. Después de tocarlo, revisa que `dist/assets/index-*.js` no tenga un `import … from "./native-…"`.
+9. **La sincronización no pierde progreso.**
+   - Juntar nunca borra lo que el otro lado hizo después de la base. Si cambias `mergeProgress` o `syncProgress`, corre `tests/sync.test.ts` y `tests/cloudSync.test.ts`, que simulan dos dispositivos y la app cerrándose en medio.
+   - El progreso y la base de la sincronización se guardan juntos (`saveProgressWith`), nunca por separado.
+   - Una versión vieja de la app no pisa progreso de una más nueva (`SyncFormatError`, según `PROGRESS_VERSION`).
+   - En `supabase/config.json` y en la app solo van la dirección del proyecto y la llave publicable (o `anon`), que son públicas. Nunca la llave secreta ni la `service_role`. Lo que protege cada cuenta son las reglas de `supabase/schema.sql`: si cambias la tabla, cada cuenta debe seguir viendo y cambiando solo su fila.
 
 ## Cómo agregar un nivel (por ejemplo, HSK 2)
 
@@ -183,9 +197,12 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 
   Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
 - Actualización automática en el navegador: compila con `DANZI_VERSION=<número>` y simula `CapacitorUpdater` (`notifyAppReady`, `getFailedUpdate`, `getBuiltinVersion` con `{ version: '1.<número>' }`, `getNextBundle`, `download`, `next`) y `CapacitorHttp.get`, que devuelve el `actualizacion.json` de cada caso. Para recargar con el `addInitScript` puesto, cambia algo más que el `#` de la dirección (por ejemplo `?r=1#ajustes`): si solo cambia el `#`, la página no se recarga.
+- Sincronización en el navegador: desde aquí no se llega a Supabase. Compila con `DANZI_SUPABASE_URL=https://<algo>.supabase.co` y `DANZI_SUPABASE_KEY=<algo>` y responde con `page.route`, como Supabase:
+  - Auth: `POST /auth/v1/otp`, `POST /auth/v1/verify` (devuelve la sesión: `access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`), `POST /auth/v1/token` y `POST /auth/v1/logout`. Los errores llevan `error_code` (por ejemplo `otp_expired`) y `msg`.
+  - Tabla: `GET /rest/v1/progreso?select=rev&user_id=eq.<id>` (solo la revisión), `GET …?select=datos,rev…`, `POST` (crear; 409 con código `23505` si ya existe) y `PATCH …&rev=eq.<n>&select=rev` (devuelve `[]` si la revisión cambió).
+  - Para entrar sin pasar por el código, guarda la sesión en localStorage (`danzi-sesion`) antes de recargar.
 - Danzi Pruebas en el navegador: compila con `DANZI_VERSION`, `DANZI_PR` y `DANZI_HUELLA` (64 caracteres hexadecimales), usa `getBuiltinVersion` con `'1.<número>-pruebas'` y responde en `CapacitorHttp.get` la lista de `https://api.github.com/repos/alejo452/Danzi/releases` y el `actualizacion.json` de cada `pruebas-pr-<número>` (o un 404). Simula también `set` y `reset`.
 
 ## Pendiente (ideas acordadas, en orden)
 
-1. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas).
-2. Estadísticas de retención y tiempo de estudio.
+1. Estadísticas de retención y tiempo de estudio.

@@ -98,7 +98,8 @@ function loadMeta(): Promise<void> {
 
 /** Guarda en el dispositivo, en una sola operación, el progreso de aquí y la versión de la nube de la que sale. */
 function saveMeta(m: SyncMeta | undefined): Promise<void> {
-  return saveProgressWith([[META_KEY, m]]);
+  // Si la sesión se cerró en medio de una sincronización, ya no se recuerda nada de ella.
+  return saveProgressWith(getCloudState().phase === 'dentro' ? [[META_KEY, m]] : []);
 }
 
 /** Olvida la última sincronización: la próxima será como la primera (junta sin perder nada de ningún lado). */
@@ -176,8 +177,11 @@ async function syncOnce(): Promise<void> {
     await loadMeta();
     const user = await currentUser();
     if (!user) return;
+    startTriggers();
     dirty = false;
     const out = await syncProgress({ backend: backendFor(supabase(), user), user, meta, getLocal: getProgress, setLocal: apply, save: saveMeta });
+    // La sesión se cerró mientras tanto: lo de aquí se queda, pero ya no se recuerda la sincronización.
+    if (getCloudState().phase !== 'dentro') return;
     meta = out.meta;
     await saveMeta(meta);
     setCloudState({ lastSync: meta.at, error: '' });

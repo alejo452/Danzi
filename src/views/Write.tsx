@@ -6,7 +6,7 @@ import { MascotSays } from '../components/MascotCard';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
 import { PHRASES } from '../lib/mascot';
-import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
+import { addExtraNew, ANSWER_CAP_S, answerSeconds, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canSpeak, speak } from '../lib/speech';
 import { GRADE_LABEL, previewAll, Rating, State, type Grade, type StoredCard } from '../lib/srs';
@@ -35,6 +35,7 @@ export function Write({ p, words, counts, go }: Props) {
   const writer = useRef<HanziWriter | null>(null);
   const [size, setSize] = useState(280);
 
+  const shownAt = useRef(Date.now());
   const deck = deckFor(p, 'write', words.byId);
   const candidates = newCandidates(p, 'write', words.words);
 
@@ -42,6 +43,8 @@ export function Write({ p, words, counts, go }: Props) {
     if (words.loading) return;
     if (current && words.byId.has(current)) return;
     setCurrent(nextCard(deck, candidates, newLeftToday(p, 'write', new Date()), new Date()));
+    // Cuándo apareció la palabra: el tiempo de estudio suma lo que tarda cada respuesta (con tope).
+    shownAt.current = Date.now();
     setIdx(0);
     setMistakes(0);
     setHinted(false);
@@ -117,7 +120,8 @@ export function Write({ p, words, counts, go }: Props) {
 
   const rate = (g: Grade) => {
     if (!current || !preview) return;
-    updateProgress((q) => recordAnswer(q, 'write', current, preview.cards[g], new Date()));
+    const seconds = answerSeconds(shownAt.current, Date.now(), ANSWER_CAP_S.write);
+    updateProgress((q) => recordAnswer(q, 'write', current, preview.cards[g], new Date(), seconds));
     setCurrent(null);
   };
 

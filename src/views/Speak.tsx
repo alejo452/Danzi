@@ -6,7 +6,7 @@ import type { Word } from '../data/levels';
 import type { Comparison } from '../lib/compare';
 import { plural } from '../lib/dates';
 import { PHRASES } from '../lib/mascot';
-import { recordSpeaking, type Progress } from '../lib/progress';
+import { ANSWER_CAP_S, answerSeconds, recordSpeaking, type Progress } from '../lib/progress';
 import { canInstallVoice, canListen, canSpeak, checkChineseVoice, installVoice, listenOnce, speak } from '../lib/speech';
 import { eligibleForTones, shuffle, toneOptions } from '../lib/tones';
 import { updateProgress } from '../lib/useProgress';
@@ -15,7 +15,11 @@ import type { WordsState } from '../lib/useWords';
 type Props = { p: Progress; words: WordsState };
 type Mode = 'tonos' | 'repetir';
 
-const bump = () => updateProgress((q) => recordSpeaking(q, new Date()));
+/** Suma un ejercicio, con lo que tardó desde que apareció (`shownAt`, en ms) para el tiempo de estudio. */
+const bump = (shownAt: number) => {
+  const seconds = answerSeconds(shownAt, Date.now(), ANSWER_CAP_S.speak);
+  updateProgress((q) => recordSpeaking(q, new Date(), seconds));
+};
 
 export function Speak({ p, words }: Props) {
   const [mode, setMode] = useState<Mode>('tonos');
@@ -62,12 +66,14 @@ type Round = { items: { w: Word; opts: string[] }[]; i: number; score: number; a
 
 function Tones({ seen, all }: { seen: Word[]; all: Word[] }) {
   const [round, setRound] = useState<Round | null>(null);
+  const shownAt = useRef(0);
 
   const start = () => {
     const eligibleSeen = seen.filter(eligibleForTones);
     const pool = eligibleSeen.length >= 8 ? eligibleSeen : all.filter(eligibleForTones).slice(0, 40);
     const items = shuffle(pool).slice(0, 10).map((w) => ({ w, opts: toneOptions(w.pinyin) }));
     setRound({ items, i: 0, score: 0, answer: null });
+    shownAt.current = Date.now();
     if (items[0]) speak(items[0].w.hanzi, 0.8);
   };
 
@@ -104,11 +110,12 @@ function Tones({ seen, all }: { seen: Word[]; all: Word[] }) {
   const choose = (o: string) => {
     if (answered) return;
     setRound({ ...round, answer: o, score: round.score + (o === it.w.pinyin ? 1 : 0) });
-    bump();
+    bump(shownAt.current);
   };
   const next = () => {
     const i = round.i + 1;
     setRound({ ...round, i, answer: null });
+    shownAt.current = Date.now();
     if (round.items[i]) speak(round.items[i].w.hanzi, 0.8);
   };
 
@@ -155,12 +162,14 @@ function Repeat({ seen, all }: { seen: Word[]; all: Word[] }) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState('');
   const stopRef = useRef<() => void>(() => {});
+  const shownAt = useRef(0);
 
   const pick = () => {
     if (!pool.length) return;
     let next = pool[Math.floor(Math.random() * pool.length)];
     if (pool.length > 1) while (next.id === current?.id) next = pool[Math.floor(Math.random() * pool.length)];
     setCurrent(next);
+    shownAt.current = Date.now();
     setTyped('');
     setResult(null);
     setError('');
@@ -265,7 +274,7 @@ function Repeat({ seen, all }: { seen: Word[]; all: Word[] }) {
         type="button"
         className="btn-primary"
         onClick={() => {
-          bump();
+          bump(shownAt.current);
           pick();
         }}
       >

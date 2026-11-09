@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CoinCount } from '../components/CoinCount';
 import { Confetti } from '../components/Confetti';
 import { EnvelopeSheet } from '../components/Envelope';
@@ -7,7 +7,7 @@ import { IconSpeaker } from '../components/Icons';
 import { RateButtons } from '../components/RateButtons';
 import { plural } from '../lib/dates';
 import { PHRASES } from '../lib/mascot';
-import { addExtraNew, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
+import { addExtraNew, ANSWER_CAP_S, answerSeconds, newLeftToday, recordAnswer, todayLog, type Progress } from '../lib/progress';
 import { nextCard, nextDueText, type QueueCounts } from '../lib/queue';
 import { canOpenEnvelope, goalProgress } from '../lib/rewards';
 import { canSpeak, speak } from '../lib/speech';
@@ -26,6 +26,8 @@ export function Review({ p, words, counts, go }: Props) {
   // Tarjetas respondidas en esta visita: si se termina el repaso aquí, se celebra.
   const [answered, setAnswered] = useState(0);
   const [envelope, setEnvelope] = useState(false);
+  // Cuándo apareció la tarjeta actual: el tiempo de estudio suma lo que tarda cada respuesta (con tope).
+  const shownAt = useRef(Date.now());
 
   const deck = deckFor(p, 'read', words.byId);
   const candidates = newCandidates(p, 'read', words.words);
@@ -37,6 +39,7 @@ export function Review({ p, words, counts, go }: Props) {
     setCurrent(nextCard(deck, candidates, newLeftToday(p, 'read', new Date()), new Date()));
     setShown(false);
     setPreview(null);
+    shownAt.current = Date.now();
   });
 
   const flip = () => {
@@ -50,7 +53,8 @@ export function Review({ p, words, counts, go }: Props) {
   const rate = (g: Grade) => {
     if (!current || !preview) return;
     const before = getProgress();
-    updateProgress((q) => recordAnswer(q, 'read', current, preview.cards[g], new Date()));
+    const seconds = answerSeconds(shownAt.current, Date.now(), ANSWER_CAP_S.read);
+    updateProgress((q) => recordAnswer(q, 'read', current, preview.cards[g], new Date(), seconds));
     setUndo({ before, id: current });
     setAnswered((n) => n + 1);
     setCurrent(null);
@@ -60,6 +64,7 @@ export function Review({ p, words, counts, go }: Props) {
     if (!undo) return;
     replaceProgress(undo.before);
     setCurrent(undo.id);
+    shownAt.current = Date.now();
     setShown(false);
     setPreview(null);
     setUndo(null);

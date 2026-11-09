@@ -167,6 +167,7 @@ export function Home({ p, words, read, write, go }: Props) {
           <li><span className="sw learn" />Aprendiendo<b>{c.learn}</b></li>
           <li><span className="sw unseen" />Sin ver<b>{c.unseen}</b></li>
         </ul>
+        <button type="button" className="link-btn" onClick={() => go('estadisticas')}>Ver tiempo de estudio y cuánto recuerdas</button>
       </section>
 
       <section className="panel" aria-labelledby="h-fc">

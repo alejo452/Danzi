@@ -5,11 +5,13 @@
 // Versiones:
 // 1. Mazos, ajustes, actividad diaria y cupo extra.
 // 2. Recompensas (monedas, sobres rojos, sellos, protectores de racha y temas) y meta diaria.
+// 3. Atuendos comprados y atuendo activo de Xi Bao.
 import { addDays, dayKey } from './dates';
+import { DEFAULT_OUTFIT, isOutfitId } from './outfits';
 import type { Deck } from './queue';
 import type { StoredCard } from './srs';
 
-export const PROGRESS_VERSION = 2;
+export const PROGRESS_VERSION = 3;
 
 export type DeckKind = 'read' | 'write';
 
@@ -44,6 +46,9 @@ export type Rewards = {
   /** Tema de color activo y temas comprados. */
   theme: string;
   themes: string[];
+  /** Atuendo activo de Xi Bao y atuendos comprados. */
+  outfit: string;
+  outfits: string[];
 };
 
 export type Progress = {
@@ -75,7 +80,7 @@ export const EARN = {
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function freshRewards(): Rewards {
-  return { coins: 0, envelopes: {}, seals: {}, shields: 0, shielded: [], theme: DEFAULT_THEME, themes: [DEFAULT_THEME] };
+  return { coins: 0, envelopes: {}, seals: {}, shields: 0, shielded: [], theme: DEFAULT_THEME, themes: [DEFAULT_THEME], outfit: DEFAULT_OUTFIT, outfits: [DEFAULT_OUTFIT] };
 }
 
 export function freshProgress(): Progress {
@@ -112,7 +117,12 @@ function normalizeRewards(raw: unknown): Rewards {
     ? [...new Set([DEFAULT_THEME, ...raw.themes.filter((t): t is string => typeof t === 'string')])]
     : f.themes;
   const theme = typeof raw.theme === 'string' && themes.includes(raw.theme) ? raw.theme : DEFAULT_THEME;
-  return { coins: count(raw.coins), envelopes, seals, shields: Math.min(MAX_SHIELDS, count(raw.shields)), shielded, theme, themes };
+  // Versiones 1 y 2 no tenían vestidor. Se conserva todo y Xi Bao empieza con su atuendo clásico.
+  const outfits = Array.isArray(raw.outfits)
+    ? [...new Set([DEFAULT_OUTFIT, ...raw.outfits.filter(isOutfitId)])]
+    : f.outfits;
+  const outfit = isOutfitId(raw.outfit) && outfits.includes(raw.outfit) ? raw.outfit : DEFAULT_OUTFIT;
+  return { coins: count(raw.coins), envelopes, seals, shields: Math.min(MAX_SHIELDS, count(raw.shields)), shielded, theme, themes, outfit, outfits };
 }
 
 /** Acepta datos guardados o importados (de cualquier versión) y devuelve un progreso válido, sin perder lo que se pueda conservar. */

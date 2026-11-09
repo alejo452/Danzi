@@ -12,7 +12,7 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
   - Al tocar la racha se abre un calendario del mes.
   - Practicar da monedas (铜钱), y cumplir la meta diaria abre un sobre rojo (红包).
   - Hay 20 sellos (印章) para coleccionar.
-  - En la tienda hay protectores de racha y temas de color.
+  - En la tienda hay protectores de racha, temas de color y un vestidor para Xi Bao: explorador, festival, lluvia y pijama. Prueba cada atuendo antes de comprarlo con monedas; después puedes cambiarlo gratis cuantas veces quieras. Xi Bao lo lleva en Inicio y al terminar los ejercicios, incluso sin internet. El armario se guarda con tu progreso y se sincroniza con tu cuenta.
 - **Tu cuenta**: con tu correo y una contraseña, el progreso queda igual en la APK, el computador y otros celulares. Si no la usas, el progreso se guarda en el dispositivo y se puede descargar y cargar en otro.
 
 Hoy incluye el **HSK 1 (300 palabras), el HSK 2 (200), el HSK 3 (500), el HSK 4 (1000), el HSK 5 (1600) y el HSK 6 (1800)**, completos. Los siguientes niveles se agregan con `npm run data:skeleton` (ver `CLAUDE.md`).

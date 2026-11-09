@@ -49,12 +49,12 @@ describe('migración del progreso', () => {
     };
     const p = normalizeProgress(v1);
     expect(p.v).toBe(PROGRESS_VERSION);
-    expect(p.v).toBe(2);
+    expect(p.v).toBe(3);
     expect(p.decks.read['1']).toEqual(v1.decks.read['1']);
     expect(p.settings).toEqual({ ...v1.settings, dailyGoal: 20 });
     expect(p.log).toEqual(v1.log);
     expect(p.extra).toEqual(v1.extra);
-    expect(p.rewards).toEqual({ coins: 0, envelopes: {}, seals: {}, shields: 0, shielded: [], theme: 'laca', themes: ['laca'] });
+    expect(p.rewards).toEqual({ coins: 0, envelopes: {}, seals: {}, shields: 0, shielded: [], theme: 'laca', themes: ['laca'], outfit: 'clasico', outfits: ['clasico'] });
     // Lo que ya habías logrado queda como sellos por recoger.
     expect(pendingSeals(p).map((s) => s.id)).toEqual(['inicio']);
   });
@@ -80,6 +80,8 @@ describe('migración del progreso', () => {
       shielded: ['2026-11-05'],
       theme: 'laca', // «oro» no está comprado
       themes: ['laca', 'jade'],
+      outfit: 'clasico',
+      outfits: ['clasico'],
     });
     expect(p.settings.dailyGoal).toBe(20);
     expect(normalizeProgress({ rewards: { coins: -5 } }).rewards.coins).toBe(0);

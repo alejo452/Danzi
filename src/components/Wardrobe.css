@@ -1,0 +1,20 @@
+.wardrobe { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
+.wardrobe > div > .label { margin-bottom: 6px; }
+.wardrobe-preview { display: flex; align-items: center; gap: 12px; padding: 16px 12px; border-radius: 18px; background: var(--surface-2); }
+.wardrobe-stage { flex: none; display: grid; place-items: center; width: 128px; height: 150px; }
+.wardrobe-info { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.wardrobe-info h4 { margin: 0; font-family: var(--font-display); font-size: 20px; }
+.wardrobe-info .price-btn { padding: 0 10px; font-size: 13px; }
+.wardrobe-eyebrow { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.wardrobe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wardrobe-option { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border: 2px solid var(--line); border-radius: 16px; color: var(--fg); background: var(--surface); }
+.wardrobe-option[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); }
+.wardrobe-option b { font-size: 14px; font-weight: 600; }
+.wardrobe-option > span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.wardrobe-message { min-height: 1.4em; }
+.wardrobe-confirm { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.wardrobe-confirm .two { width: 100%; }
+@media (max-width: 360px) {
+  .wardrobe-preview { flex-direction: column; }
+  .wardrobe-info { align-items: center; text-align: center; }
+}

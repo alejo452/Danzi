@@ -77,6 +77,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Lector de texto en chino de ML Kit (ChineseOcrPlugin). El modelo lo descarga Google Play Services, no va en la APK.
+    implementation "com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.2"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

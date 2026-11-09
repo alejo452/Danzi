@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { CoinCount } from '../components/CoinCount';
 import { EnvelopeArt, EnvelopeSheet } from '../components/Envelope';
 import { GoalRing } from '../components/GoalRing';
-import { IconFlame, IconGear, IconMic, IconPencil } from '../components/Icons';
+import { IconFlame, IconGear, IconMic, IconPencil, IconScan } from '../components/Icons';
 import { MascotCard } from '../components/MascotCard';
 import { Sheet } from '../components/Sheet';
 import { StreakCalendar } from '../components/StreakCalendar';
 import { LEVELS } from '../data/levels';
 import { dayKey, plural } from '../lib/dates';
 import { homeLine } from '../lib/mascot';
+import { isNative } from '../lib/native';
 import { streak, todayLog, type Progress } from '../lib/progress';
 import { forecast, type QueueCounts } from '../lib/queue';
 import { canOpenEnvelope, goalProgress } from '../lib/rewards';
@@ -147,6 +148,13 @@ export function Home({ p, words, read, write, go }: Props) {
             <span className="ico"><IconMic size={20} /></span>
             <span className="txt"><b>Habla</b><small>Entrena tonos y repite frases en voz alta</small></span>
             <span className="val">{tl.h ? `${tl.h} hoy` : ''}</span>
+          </button>
+          <button type="button" onClick={() => go('leer')}>
+            <span className="ico"><IconScan size={20} /></span>
+            <span className="txt">
+              <b>Leer un texto</b>
+              <small>{isNative ? 'Tómale una foto a un texto en chino o pégalo' : 'Pega un texto en chino'} y mira qué palabras ya sabes</small>
+            </span>
           </button>
         </div>
       </section>

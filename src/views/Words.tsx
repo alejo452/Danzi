@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { IconSearch, IconSpeaker } from '../components/Icons';
+import { IconScan, IconSearch, IconSpeaker } from '../components/Icons';
 import { POS_GROUP_ORDER, posGroup, type Word } from '../data/levels';
+import { isNative } from '../lib/native';
 import type { Progress } from '../lib/progress';
 import { canSpeak, speak } from '../lib/speech';
 import { isLearning, isMature } from '../lib/srs';
 import type { WordsState } from '../lib/useWords';
+import type { View } from '../App';
 
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -15,7 +17,7 @@ const STATUS = {
   master: ['Dominada', 'master'],
 } as const;
 
-export function Words({ p, words }: { p: Progress; words: WordsState }) {
+export function Words({ p, words, go }: { p: Progress; words: WordsState; go: (v: View) => void }) {
   const [q, setQ] = useState('');
 
   const index = useMemo(
@@ -56,6 +58,10 @@ export function Words({ p, words }: { p: Progress; words: WordsState }) {
         <span className="sr">Buscar palabras</span>
         <input id="q" type="search" placeholder="Busca en chino, pinyin o español" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
       </label>
+      <button type="button" className="btn-line" onClick={() => go('leer')}>
+        <IconScan size={18} />
+        {isNative ? 'Leer un texto o una foto en chino' : 'Leer un texto en chino'}
+      </button>
       {POS_GROUP_ORDER.filter((g) => groups.has(g)).map((g) => (
         <section key={g} className="wgroup">
           <h2 className="label">{g}</h2>

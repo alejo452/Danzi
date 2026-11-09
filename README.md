@@ -7,6 +7,7 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
 - **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado. Los trazos se descargan al instalar la app, así que también funciona sin internet.
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.
 - **Palabras**: buscador por chino, pinyin o español.
+- **Leer un texto**: pega un texto en chino (en la APK, también tómale una foto o elige una de la galería) y Danzi lo separa en palabras: subraya las que todavía no estudias y, al tocar una, la dice en voz alta y muestra su pinyin, su significado y un ejemplo. En la APK, la foto se lee en el mismo celular, sin internet una vez descargado el lector.
 - **Recordatorio diario**: a la hora que elijas, una notificación con tu racha y las tarjetas pendientes. En la APK de Android lo programa el celular; en la versión web hay que configurarlo una vez (ver abajo).
 - **Racha y premios**:
   - Al tocar la racha se abre un calendario del mes.
@@ -57,6 +58,8 @@ Es la misma app, instalada como app de Android. Funciona sin internet, se actual
 3. Revisa que estén tu racha, tus monedas y tus sellos. Hasta comprobarlo, no borres la app web ni sus datos.
 
 **Recordatorio:** en la APK, entra a **Ajustes › Recordatorio diario**, elige la hora y los minutos (por ejemplo, **7:43 a. m.**) y toca **Activar recordatorio**. Para cambiar un aviso activo, elige el nuevo horario y toca **Guardar hora**. Si ese día ya practicaste, no te avisa. Los horarios anteriores se conservan con los minutos en `00`. Cuando te funcione, borra el secreto `DANZI_RECORDATORIO` en GitHub para que no te lleguen dos avisos.
+
+**Leer una foto:** en **Palabras › Leer un texto o una foto en chino**, toca **Tomar foto** o **Elegir foto**. La foto la lee ML Kit de Google en el mismo celular: no se sube a ningún lado. El lector de chino lo descarga Google Play Services la primera vez que abres esa pantalla (necesita internet esa vez); si todavía se está descargando, la app lo dice. En celulares sin Google Play Services no se pueden leer fotos, pero sí pegar el texto.
 
 **Voz:** la APK usa los motores de voz de Android. Si en **Hablar** aparece «Falta la voz en chino», toca **Instalar la voz en chino** y descarga la voz en chino (China). El reconocimiento de voz usa la app de Google.
 
@@ -155,4 +158,5 @@ Cada push a `main` también compila la APK firmada y la publica en **Releases** 
 
 - Vocabulario: 《HSK考试大纲》 (2025), Centro de Educación y Cooperación Lingüística (CLEC). Más detalles en `data-source/README.md`.
 - Trazos: [Hanzi Writer](https://hanziwriter.org) y [Make Me a Hanzi](https://github.com/skishore/makemeahanzi) (licencia Arphic Public License).
+- Lectura de fotos en la APK: [ML Kit](https://developers.google.com/ml-kit/vision/text-recognition/v2) de Google.
 - Significados y ejemplos en español escritos para esta app.

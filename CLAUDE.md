@@ -16,7 +16,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 
 ## Estructura
 
-- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y tres vistas sin pestaña (`#ajustes`, `#premios` y `#estadisticas`, a las que se llega desde Inicio). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
+- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y cuatro vistas sin pestaña (`#ajustes`, `#premios` y `#estadisticas`, a las que se llega desde Inicio, y `#leer`, desde Palabras y desde Inicio). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
 - `src/views/`: una vista por pestaña.
 - `src/lib/srs.ts`: repaso espaciado con FSRS (`ts-fsrs`). Pasos de aprendizaje: 1 min y 10 min.
 - `src/lib/queue.ts`: qué tarjeta toca y cuántas quedan hoy. Sirve para los dos mazos: lectura (`read`) y escritura (`write`).
@@ -38,6 +38,15 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - Una respuesta cuenta como olvidada si FSRS le suma un olvido (`lapses`), así que `recordAnswer` no necesita saber qué botón se tocó.
   - `src/lib/stats.ts`: funciones puras (tiempo y actividad por día, retención real de los últimos 30 días y cuánto recordarías hoy según FSRS, con `recallChance` de `srs.ts`).
   - `src/views/Stats.tsx`: la vista. `src/components/ColumnChart.tsx`: columnas de una serie (barras en `--chart-bar`, la elegida en `--accent`), con la lectura del valor al tocar o enfocar cada columna y una vista de tabla.
+- Leer un texto (`#leer`, desde Palabras y desde Inicio › Más práctica):
+  - `src/lib/reader.ts`: funciones puras. Separa el texto en palabras del temario con las 11 000 palabras de `data-source/hsk-2025-syllabus.json` (máxima coincidencia hacia adelante y hacia atrás; gana la separación con menos palabras). También dice qué tanto conoce Diego cada palabra según su tarjeta de lectura, con los mismos nombres de Palabras, y pega los signos a las palabras (`pieces`) para que una línea no empiece con «，».
+  - `src/views/Reader.tsx`: la vista. Carga el temario y los niveles con `import()` solo al abrirla. El pinyin de los caracteres que no están en el temario sale de `pinyin-pro`. Las palabras que todavía no estudia van subrayadas (no solo de color) y al tocarlas se oyen. El texto se conserva al cambiar de pestaña.
+  - En la web no hay cámara: la vista sugiere copiar el texto de la foto con Google Lens.
+  - En la APK, «Tomar foto» y «Elegir foto» usan `src/native/ocr.ts` y el complemento propio `ChineseOcrPlugin.java`. Abre la app de cámara del celular o el selector de fotos de Android, que no piden permisos, y lee la foto con ML Kit (`play-services-mlkit-text-recognition-chinese`) en el mismo celular.
+    - La foto se achica a 2600 px y se gira según su EXIF antes de leerla.
+    - El modelo no va en la APK: lo descarga Google Play Services. La vista lo pide al abrirse (`prepare`), y si todavía se descarga, la lectura lo dice (`DESCARGANDO`).
+    - Sin Google Play Services no se pueden leer fotos (`SIN_SERVICIOS`), pero se puede pegar el texto.
+    - Los mensajes de error están en `src/lib/ocr.ts`, que nunca muestra el mensaje técnico.
 - `src/lib/speech.ts`: lectura en voz alta y reconocimiento de voz en chino.
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
@@ -73,7 +82,7 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
     - Sigue el pull request del que sale su versión, o el que se elija en Ajustes › Versiones de prueba (campo `pr`). La lista sale de la API de GitHub (`/releases`, sin token). Al elegir uno, la versión se usa de una vez (`set`). «Volver a la versión de la APK» hace `reset`.
     - `.github/pruebas/`: la llave de pruebas (`danzi-pruebas.p12`, contraseña `danzi-pruebas`) y su huella. Firma todas las «Danzi Pruebas», así que una nueva se instala encima de la anterior.
     - `.github/workflows/pruebas.yml`: publica la versión de prueba cuando termina la compilación del pull request y la borra cuando se cierra.
-  - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
+  - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra los complementos propios (`SaveFile` y `ChineseOcr`, el de leer fotos) y pone el fondo de la app mientras carga.
   - `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
   - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
 - Sincronización entre dispositivos (Supabase, cuenta con correo y contraseña):
@@ -209,6 +218,7 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
   - `nativePromise(plugin, método, opciones)` y `nativeCallback(plugin, método, opciones, callback)`, que responden como el celular.
 
   Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
+- Leer una foto en el navegador: con la APK simulada, agrega `ChineseOcr` con `prepare` (`{ ready }`), `pickPhoto` (`{ uri }`, o `{}` si se cerró la cámara) y `recognize` (`{ text }`, o un error con `code`). La cámara y la lectura de verdad solo se prueban en el celular, con Danzi Pruebas.
 - Actualización automática en el navegador: compila con `DANZI_VERSION=<número>` y simula `CapacitorUpdater` (`notifyAppReady`, `getFailedUpdate`, `getBuiltinVersion` con `{ version: '1.<número>' }`, `getNextBundle`, `download`, `next`, `addListener` y `removeListener`) y `CapacitorHttp.get`, que responde como GitHub: la versión de la API (`/releases/latest` con sus `assets`), el `actualizacion.json` de cada caso en la dirección de su archivo y, para el paquete con `disableRedirects`, un 302 con `Location`. Si la API falla, la app pide el aviso a la dirección de la web. Para recargar con el `addInitScript` puesto, cambia algo más que el `#` de la dirección (por ejemplo `?r=1#ajustes`): si solo cambia el `#`, la página no se recarga.
 - Sincronización en el navegador: desde aquí no se llega a Supabase. Compila con `DANZI_SUPABASE_URL=https://<algo>.supabase.co` y `DANZI_SUPABASE_KEY=<algo>` y responde con `page.route`, como Supabase:
   - Auth: `POST /auth/v1/signup` (crear la cuenta) y `POST /auth/v1/token?grant_type=password` (entrar) devuelven la sesión (`access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`); además `POST /auth/v1/token?grant_type=refresh_token` y `POST /auth/v1/logout`. Los errores llevan `error_code` (por ejemplo `invalid_credentials` o `user_already_exists`) y `msg`.
@@ -218,4 +228,4 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 
 ## Pendiente (ideas acordadas, en orden)
 
-1. Estadísticas de retención y tiempo de estudio.
+1. Desde «Leer un texto», agregar las palabras que todavía no estudia para estudiarlas. Necesita cambiar el formato de `Progress` (ver las reglas).

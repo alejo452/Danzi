@@ -8,6 +8,19 @@ function Svg({ size = 22, children }: { size?: number; children: ReactNode }) {
   );
 }
 
+/** Leer un texto: un recuadro de escáner con líneas de texto. */
+export const IconScan = (p: { size?: number }) => (
+  <Svg {...p}><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M8 10h8M8 14h5" /></Svg>
+);
+
+export const IconCamera = (p: { size?: number }) => (
+  <Svg {...p}><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.5" /></Svg>
+);
+
+export const IconImage = (p: { size?: number }) => (
+  <Svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-8 8" /></Svg>
+);
+
 export const IconHome = (p: { size?: number }) => (
   <Svg {...p}><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></Svg>
 );

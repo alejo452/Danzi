@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconBack } from '../components/Icons';
 import { LocalReminderPanel } from '../components/LocalReminderPanel';
 import { ReminderPanel } from '../components/ReminderPanel';
+import { SyncPanel } from '../components/SyncPanel';
 import { UpdatePanel } from '../components/UpdatePanel';
 import { isReady, LEVELS } from '../data/levels';
+import { cloudConfigured, useCloudState } from '../lib/cloudConfig';
 import { dayKey } from '../lib/dates';
 import { isNative } from '../lib/native';
 import { freshProgress, normalizeProgress, type Progress, type Settings as S } from '../lib/progress';
@@ -58,6 +60,13 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
   const [pendingImport, setPendingImport] = useState<Progress | null>(null);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const signedIn = useCloudState().phase === 'dentro';
+
+  // Con la sesión iniciada, lo que se carga o se borra aquí también queda así en la cuenta (src/lib/cloud.ts).
+  const replace = (next: Progress) => {
+    replaceProgress(next);
+    if (signedIn) import('../lib/cloud').then((m) => m.markReplaced()).catch(() => undefined);
+  };
 
   const set = (patch: Partial<S>) => updateProgress((q) => ({ ...q, settings: { ...q.settings, ...patch }, updatedAt: Date.now() }));
 
@@ -179,9 +188,17 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
         </section>
       )}
 
+      {cloudConfigured && <SyncPanel />}
+
       <section className="panel">
         <h2 className="label">Tu progreso</h2>
-        <p className="note">Se guarda en este dispositivo. Para pasarlo a otro, descárgalo aquí y cárgalo allá.</p>
+        <p className="note">
+          {signedIn
+            ? 'Se guarda en este dispositivo y en tu cuenta. También puedes descargarlo como copia de seguridad.'
+            : cloudConfigured
+              ? 'Se guarda en este dispositivo. Para tenerlo en otro, inicia sesión en «Tu cuenta», o descárgalo aquí y cárgalo allá.'
+              : 'Se guarda en este dispositivo. Para pasarlo a otro, descárgalo aquí y cárgalo allá.'}
+        </p>
         <div className="two">
           <button type="button" className="btn-line" onClick={exportProgress}>Descargar</button>
           <button type="button" className="btn-line" onClick={() => fileRef.current?.click()}>Cargar archivo</button>
@@ -190,14 +207,18 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
         <input ref={fileRef} type="file" accept={isNative ? undefined : 'application/json,.json'} hidden onChange={(e) => onFile(e.target.files?.[0])} />
         {pendingImport && (
           <div className="confirm">
-            <p>Esto reemplaza tu progreso actual en este dispositivo por el del archivo.</p>
+            <p>
+              {signedIn
+                ? 'Esto reemplaza tu progreso actual por el del archivo, en este dispositivo y en tu cuenta.'
+                : 'Esto reemplaza tu progreso actual en este dispositivo por el del archivo.'}
+            </p>
             <div className="two">
               <button type="button" className="btn-line" onClick={() => setPendingImport(null)}>Cancelar</button>
               <button
                 type="button"
                 className="btn-primary"
                 onClick={() => {
-                  replaceProgress({ ...pendingImport, updatedAt: Date.now() });
+                  replace({ ...pendingImport, updatedAt: Date.now() });
                   setPendingImport(null);
                   setMessage('Progreso cargado.');
                 }}
@@ -212,14 +233,17 @@ export function Settings({ p, words, go }: { p: Progress; words: WordsState; go:
           <button type="button" className="btn-line danger" onClick={() => setConfirmReset(true)}>Borrar mi progreso</button>
         ) : (
           <div className="confirm">
-            <p>Se borran las tarjetas, la escritura, la racha, el historial, las monedas, los sellos y los temas comprados. No se puede deshacer.</p>
+            <p>
+              Se borran las tarjetas, la escritura, la racha, el historial, las monedas, los sellos y los temas comprados.
+              {signedIn && ' También se borran de tu cuenta y de tus otros dispositivos.'} No se puede deshacer.
+            </p>
             <div className="two">
               <button type="button" className="btn-line" onClick={() => setConfirmReset(false)}>Cancelar</button>
               <button
                 type="button"
                 className="btn-primary"
                 onClick={() => {
-                  replaceProgress({ ...freshProgress(), settings: p.settings, updatedAt: Date.now() });
+                  replace({ ...freshProgress(), settings: p.settings, updatedAt: Date.now() });
                   setConfirmReset(false);
                 }}
               >

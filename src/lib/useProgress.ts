@@ -1,6 +1,6 @@
 // Estado global del progreso, guardado en IndexedDB del navegador.
 import { useSyncExternalStore } from 'react';
-import { get, set } from 'idb-keyval';
+import { get, set, setMany } from 'idb-keyval';
 import { freshProgress, normalizeProgress, type Progress } from './progress';
 
 const KEY = 'progress';
@@ -8,6 +8,10 @@ let state: Progress = freshProgress();
 let loaded = false;
 const listeners = new Set<() => void>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let markReady: () => void = () => {};
+
+/** Se cumple cuando el progreso guardado ya se leyó (antes, getProgress devuelve un progreso vacío). */
+export const progressReady = new Promise<void>((ok) => (markReady = ok));
 
 function emit() {
   for (const l of listeners) l();
@@ -28,6 +32,7 @@ export async function loadProgress(): Promise<void> {
     console.error('No se pudo leer el progreso guardado', e);
   }
   loaded = true;
+  markReady();
   emit();
 }
 
@@ -47,9 +52,24 @@ export function replaceProgress(p: Progress): void {
   scheduleSave();
 }
 
+/**
+ * Guarda el progreso de inmediato junto con otros valores, en una sola operación: quedan todos o ninguno.
+ * La sincronización guarda así el progreso y la versión de la nube de la que sale.
+ */
+export function saveProgressWith(entries: [IDBValidKey, unknown][]): Promise<void> {
+  if (!loaded) return Promise.reject(new Error('El progreso todavía no se ha leído.'));
+  clearTimeout(saveTimer);
+  return setMany([[KEY, state], ...entries]);
+}
+
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
+}
+
+/** Avisa cada vez que cambia el progreso. Devuelve la función para dejar de escuchar. */
+export function onProgressChange(cb: () => void): () => void {
+  return subscribe(cb);
 }
 
 export function useProgress(): Progress {

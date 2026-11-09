@@ -9,3 +9,6 @@ declare const __DANZI_PR__: number;
 
 /** Huella de la parte de Android de esta compilación (vacía en las compilaciones locales). */
 declare const __DANZI_HUELLA__: string;
+
+/** Proyecto de Supabase para la sincronización (supabase/config.json). Vacío si todavía no se configuró. */
+declare const __DANZI_NUBE__: { url: string; key: string };

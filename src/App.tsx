@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Celebrations } from './components/Celebrations';
 import { IconBook, IconCards, IconHome, IconMic, IconPencil } from './components/Icons';
 import { Toasts } from './components/Toasts';
+import { cloudConfigured, hasStoredSession, setCloudState, useCloudReady } from './lib/cloudConfig';
 import { dayKey } from './lib/dates';
 import { isNative } from './lib/native';
 import { newLeftToday } from './lib/progress';
@@ -42,11 +43,13 @@ export default function App() {
   const main = useRef<HTMLElement>(null);
   const [, setTick] = useState(0);
   const [shieldsUsed, setShieldsUsed] = useState(0);
+  const cloudReady = useCloudReady();
   const today = dayKey(new Date());
 
   // Al abrir la app (y cada día nuevo), los protectores cubren los días sin práctica justo antes de hoy.
+  // Con la sesión iniciada esperan a la primera sincronización: la práctica que falta pudo ser en otro dispositivo.
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !cloudReady) return;
     let used = 0;
     updateProgress((q) => {
       const r = applyShields(q, new Date());
@@ -54,7 +57,18 @@ export default function App() {
       return r.used ? r.p : q;
     });
     if (used) setShieldsUsed(used);
-  }, [loaded, today]);
+  }, [loaded, today, cloudReady]);
+
+  // Con una sesión guardada, sincroniza el progreso con la cuenta (src/lib/cloud.ts, que carga Supabase).
+  useEffect(() => {
+    if (!cloudConfigured || !hasStoredSession()) return;
+    // Si la nube tarda, los protectores no esperan más de 10 segundos.
+    const t = setTimeout(() => setCloudState({ ready: true }), 10_000);
+    import('./lib/cloud')
+      .then((m) => m.startCloud())
+      .catch(() => setCloudState({ ready: true }));
+    return () => clearTimeout(t);
+  }, []);
 
   // Tema de color comprado en Premios, también en la barra del navegador.
   useEffect(() => {

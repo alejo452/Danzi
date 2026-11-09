@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -13,6 +14,16 @@ const danziPr = Number.parseInt(process.env.DANZI_PR ?? '', 10) || 0;
 // Huella de la parte de Android de esta compilación (scripts/update-manifest.mjs --huella). «Danzi Pruebas»
 // la guarda al abrir la versión que trae la APK, para saber qué versiones de prueba puede usar sin reinstalar.
 const danziHuella = /^[0-9a-f]{64}$/.test(process.env.DANZI_HUELLA ?? '') ? process.env.DANZI_HUELLA : '';
+// Proyecto de Supabase para la sincronización (supabase/config.json). La dirección y la llave publicable van dentro
+// de la app a propósito: son públicas, y las reglas de la tabla (supabase/schema.sql) protegen el progreso de cada
+// cuenta. DANZI_SUPABASE_URL y DANZI_SUPABASE_KEY las reemplazan (por ejemplo, para probar con un servidor simulado).
+// Sin dirección, la app no muestra la sincronización.
+const nubeArchivo = JSON.parse(fs.readFileSync('supabase/config.json', 'utf8')) as { url?: string; key?: string };
+const nube = {
+  url: (process.env.DANZI_SUPABASE_URL ?? nubeArchivo.url ?? '').replace(/\/+$/, ''),
+  key: process.env.DANZI_SUPABASE_KEY ?? nubeArchivo.key ?? '',
+};
+if (nube.url && !/^https:\/\/[^/]+$/.test(nube.url)) throw new Error(`supabase/config.json: la dirección debe ser https://<proyecto>.supabase.co, no ${nube.url}`);
 
 export default defineConfig({
   base,
@@ -20,6 +31,7 @@ export default defineConfig({
     __DANZI_VERSION__: JSON.stringify(danziVersion),
     __DANZI_PR__: JSON.stringify(danziPr),
     __DANZI_HUELLA__: JSON.stringify(danziHuella),
+    __DANZI_NUBE__: JSON.stringify(nube.url && nube.key ? nube : { url: '', key: '' }),
   },
   build: {
     rollupOptions: {

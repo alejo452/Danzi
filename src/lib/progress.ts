@@ -7,12 +7,13 @@
 // 2. Recompensas (monedas, sobres rojos, sellos, protectores de racha y temas) y meta diaria.
 // 3. Atuendos comprados y atuendo activo de Xi Bao.
 // 4. Tiempo de estudio y repasos recordados u olvidados de cada día (para las estadísticas).
+// 5. Palabras escritas a mano en papel de cada día (ejercicio con la cámara de la APK).
 import { addDays, dayKey } from './dates';
 import { DEFAULT_OUTFIT, isOutfitId } from './outfits';
 import type { Deck } from './queue';
 import type { StoredCard } from './srs';
 
-export const PROGRESS_VERSION = 4;
+export const PROGRESS_VERSION = 5;
 
 export type DeckKind = 'read' | 'write';
 
@@ -23,7 +24,7 @@ export type Settings = {
   newWritePerDay: number;
   autoSpeak: boolean;
   pinyinFront: boolean;
-  /** Actividades del día (tarjetas, palabras escritas y ejercicios de habla) para abrir el sobre rojo. */
+  /** Actividades del día (tarjetas, palabras escritas, ejercicios de habla y palabras en papel) para abrir el sobre rojo. */
   dailyGoal: number;
 };
 
@@ -32,8 +33,22 @@ export type Settings = {
  * h = habla, c = monedas ganadas.
  * Desde la versión 4, para las estadísticas: t = segundos de estudio; rr = respuestas a tarjetas que ya estaban en
  * repaso y rf = de esas, las olvidadas («Otra vez»); wr y wf, lo mismo en escritura.
+ * Desde la versión 5: pa = palabras escritas a mano en papel que Danzi leyó bien en la foto.
  */
-export type DayLog = { r?: number; n?: number; w?: number; wn?: number; h?: number; c?: number; t?: number; rr?: number; rf?: number; wr?: number; wf?: number };
+export type DayLog = {
+  r?: number;
+  n?: number;
+  w?: number;
+  wn?: number;
+  h?: number;
+  c?: number;
+  t?: number;
+  rr?: number;
+  rf?: number;
+  wr?: number;
+  wf?: number;
+  pa?: number;
+};
 
 export type Rewards = {
   /** Saldo de monedas. */
@@ -78,6 +93,9 @@ export const EARN = {
   newWrite: 2,
   speak: 1,
   speakCap: 20,
+  /** Escribir en papel cuesta más que una tarjeta. El tope evita sacar monedas con fotos de textos de internet. */
+  paper: 2,
+  paperCap: 10,
 } as const;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -148,7 +166,8 @@ export function normalizeProgress(raw: unknown): Progress {
       // Versión 1 no tenía meta diaria.
       dailyGoal: count(settings.dailyGoal) || f.settings.dailyGoal,
     } as Settings,
-    // Versión 4 solo agrega contadores opcionales a cada día (tiempo y repasos recordados): los días de antes sirven tal cual.
+    // Las versiones 4 y 5 solo agregan contadores opcionales a cada día (tiempo, repasos recordados y palabras en
+    // papel): los días de antes sirven tal cual.
     log: isObject(raw.log) ? (raw.log as Record<string, DayLog>) : {},
     extra: { date: String(extra.date ?? ''), read: Number(extra.read) || 0, write: Number(extra.write) || 0 },
     // Versión 1 no tenía recompensas: se empieza en cero y los sellos ya ganados quedan por recoger.
@@ -159,15 +178,28 @@ export function normalizeProgress(raw: unknown): Progress {
 
 export function todayLog(p: Progress, now: Date): Required<DayLog> {
   const l = p.log[dayKey(now)] ?? {};
-  return { r: l.r ?? 0, n: l.n ?? 0, w: l.w ?? 0, wn: l.wn ?? 0, h: l.h ?? 0, c: l.c ?? 0, t: l.t ?? 0, rr: l.rr ?? 0, rf: l.rf ?? 0, wr: l.wr ?? 0, wf: l.wf ?? 0 };
+  return {
+    r: l.r ?? 0,
+    n: l.n ?? 0,
+    w: l.w ?? 0,
+    wn: l.wn ?? 0,
+    h: l.h ?? 0,
+    c: l.c ?? 0,
+    t: l.t ?? 0,
+    rr: l.rr ?? 0,
+    rf: l.rf ?? 0,
+    wr: l.wr ?? 0,
+    wf: l.wf ?? 0,
+    pa: l.pa ?? 0,
+  };
 }
 
 /**
  * Tope de segundos que cuenta una respuesta, como en Anki: desde que aparece la tarjeta, la palabra o el ejercicio
  * hasta que se responde. Si alguien se va a mitad, no se suma todo ese rato. La escritura, con varios caracteres
- * por palabra, tiene más margen.
+ * por palabra, tiene más margen, y la de papel (escribir y tomar la foto) más todavía.
  */
-export const ANSWER_CAP_S = { read: 60, write: 120, speak: 60 } as const;
+export const ANSWER_CAP_S = { read: 60, write: 120, speak: 60, paper: 180 } as const;
 
 /** Segundos que se cuentan para una respuesta: desde que apareció (ms) hasta ahora (ms), sin pasar del tope. */
 export function answerSeconds(startedAt: number, now: number, cap: number): number {
@@ -252,15 +284,40 @@ export function recordSpeaking(p: Progress, now: Date, seconds = 0): Progress {
   return { ...p, log: { ...p.log, [key]: l }, rewards: { ...p.rewards, coins: p.rewards.coins + coins }, updatedAt: now.getTime() };
 }
 
+/**
+ * Suma una palabra escrita en papel que Danzi leyó bien. Da monedas solo si la persona la escribió de memoria
+ * (`fromMemory`: no vio cómo se escribe) y hasta EARN.paperCap palabras al día; después sigue contando como práctica.
+ * `seconds`: lo que tardó (answerSeconds), para el tiempo de estudio.
+ */
+export function recordPaper(p: Progress, now: Date, seconds: number, fromMemory: boolean): Progress {
+  const key = dayKey(now);
+  const l = { ...(p.log[key] ?? {}) };
+  l.pa = (l.pa ?? 0) + 1;
+  if (seconds > 0) l.t = (l.t ?? 0) + Math.round(seconds);
+  const coins = fromMemory && l.pa <= EARN.paperCap ? EARN.paper : 0;
+  l.c = (l.c ?? 0) + coins;
+  return { ...p, log: { ...p.log, [key]: l }, rewards: { ...p.rewards, coins: p.rewards.coins + coins }, updatedAt: now.getTime() };
+}
+
+/** Cuántas palabras más en papel dan monedas hoy. */
+export function paperCoinsLeft(p: Progress, now: Date): number {
+  return Math.max(0, EARN.paperCap - todayLog(p, now).pa);
+}
+
 export function addExtraNew(p: Progress, kind: DeckKind, n: number, now: Date): Progress {
   const key = dayKey(now);
   const base = p.extra.date === key ? p.extra : { date: key, read: 0, write: 0 };
   return { ...p, extra: { ...base, [kind]: base[kind] + n }, updatedAt: now.getTime() };
 }
 
-/** Si ese día hubo práctica (tarjetas, escritura o habla). */
+/** Actividades de un día: tarjetas, palabras escritas, ejercicios de habla y palabras en papel. */
+export function activities(l?: DayLog): number {
+  return l ? (l.r ?? 0) + (l.w ?? 0) + (l.h ?? 0) + (l.pa ?? 0) : 0;
+}
+
+/** Si ese día hubo práctica (tarjetas, escritura, habla o papel). */
 export function practiced(l?: DayLog): boolean {
-  return !!l && (l.r ?? 0) + (l.w ?? 0) + (l.h ?? 0) > 0;
+  return activities(l) > 0;
 }
 
 /**

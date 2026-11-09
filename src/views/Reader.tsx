@@ -160,7 +160,7 @@ export function Reader({ p, go }: { p: Progress; go: (v: View) => void }) {
                 <IconImage size={18} />Elegir foto
               </button>
             </div>
-            {photo && <p className="note" role="status">{photo}</p>}
+            <div role="status">{photo && <p className="note">{photo}</p>}</div>
           </>
         )}
         <label className="field" htmlFor="rd-text">

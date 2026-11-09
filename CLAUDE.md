@@ -16,11 +16,11 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 
 ## Estructura
 
-- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y cuatro vistas sin pestaña (`#ajustes`, `#premios` y `#estadisticas`, a las que se llega desde Inicio, y `#leer`, desde Palabras y desde Inicio). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
+- `src/App.tsx`: navegación por pestañas (`#inicio`, `#repasar`, `#escribir`, `#hablar`, `#palabras`) y cinco vistas sin pestaña (`#ajustes`, `#premios` y `#estadisticas`, a las que se llega desde Inicio; `#leer`, desde Palabras y desde Inicio; y `#papel`, solo en la APK, desde Inicio y desde Escribir). También aplica el tema de color, usa los protectores de racha al abrir la app y muestra las celebraciones y los avisos.
 - `src/views/`: una vista por pestaña.
 - `src/lib/srs.ts`: repaso espaciado con FSRS (`ts-fsrs`). Pasos de aprendizaje: 1 min y 10 min.
 - `src/lib/queue.ts`: qué tarjeta toca y cuántas quedan hoy. Sirve para los dos mazos: lectura (`read`) y escritura (`write`).
-- `src/lib/progress.ts`: modelo del progreso, con funciones puras. `src/lib/useProgress.ts` lo guarda en IndexedDB. Va en la versión 4: además de mazos, actividad, recompensas, meta diaria y el armario y el atuendo de Xi Bao, cada día guarda el tiempo de estudio y los repasos recordados u olvidados (para las estadísticas). `recordAnswer` y `recordSpeaking` suman monedas con tope diario.
+- `src/lib/progress.ts`: modelo del progreso, con funciones puras. `src/lib/useProgress.ts` lo guarda en IndexedDB. Va en la versión 5: además de mazos, actividad, recompensas, meta diaria y el armario y el atuendo de Xi Bao, cada día guarda el tiempo de estudio y los repasos recordados u olvidados (para las estadísticas) y las palabras escritas en papel (`pa`). `recordAnswer`, `recordSpeaking` y `recordPaper` suman monedas con tope diario (`EARN`). `activities` dice cuántas actividades hubo un día (tarjetas, escritura, habla y papel): de ahí salen la meta, la racha, el recordatorio y las estadísticas.
 - Recompensas:
   - `src/lib/rewards.ts`: funciones puras de la meta diaria y el sobre rojo (红包), los protectores de racha, la mejor racha, los sellos (印章), la tienda y el calendario.
   - `src/views/Rewards.tsx`: la vista Premios (`#premios`), con el saldo, la tienda (protectores y temas) y los sellos.
@@ -47,6 +47,13 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
     - El modelo no va en la APK: lo descarga Google Play Services. La vista lo pide al abrirse (`prepare`), y si todavía se descarga, la lectura lo dice (`DESCARGANDO`).
     - Sin Google Play Services no se pueden leer fotos (`SIN_SERVICIOS`), pero se puede pegar el texto.
     - Los mensajes de error están en `src/lib/ocr.ts`, que nunca muestra el mensaje técnico.
+- Escritura en papel (`#papel`, solo en la APK, desde Inicio › Más práctica y desde Escribir al terminar):
+  - Danzi pide una palabra que ya estudia Diego, con su pinyin, su significado y su audio. Sale de Escribir; si ahí hay menos de 5, de las que ya vio en Repasar. Diego la escribe a mano en un papel y le toma una foto con la cámara (aquí no se puede elegir de la galería). La lee el complemento de «Leer un texto» (`readPhoto` con el contexto `papel`, que cambia los mensajes de error).
+  - `src/lib/paper.ts`: funciones puras. Qué palabra pedir (sin repetir las últimas 10) y si la foto tiene la palabra (`checkPaper`). Solo cuentan los caracteres chinos de la foto; una foto sin chino no cuenta, ni una con más de `maxPaperChars` caracteres, que parece una página o una pantalla.
+  - `src/views/Paper.tsx`: la vista. «Ver cómo se escribe» muestra la palabra para copiarla.
+  - Cada palabra que Danzi lee bien suma `pa` en el día y cuenta para la meta, la racha y las estadísticas. El tiempo se mide con un tope de 3 minutos (`ANSWER_CAP_S.paper`).
+  - Monedas (`recordPaper`): `EARN.paper` por palabra escrita de memoria, hasta `EARN.paperCap` palabras al día. Si tocó «Ver cómo se escribe», cuenta como práctica pero no da monedas. El tope está porque con fotos de textos de internet se podrían sacar monedas sin fin: no lo quites.
+  - ML Kit está hecho para letra impresa: la letra a mano solo la lee si es clara. Los mensajes piden escribir grande, con trazos separados y buena luz, y dicen qué leyó Danzi.
 - `src/lib/speech.ts`: lectura en voz alta y reconocimiento de voz en chino.
 - `src/lib/compare.ts`: compara lo que entendió el reconocimiento con la frase objetivo, por sílabas de pinyin.
 - `src/lib/tones.ts`: ejercicio de tonos.
@@ -218,7 +225,7 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
   - `nativePromise(plugin, método, opciones)` y `nativeCallback(plugin, método, opciones, callback)`, que responden como el celular.
 
   Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
-- Leer una foto en el navegador: con la APK simulada, agrega `ChineseOcr` con `prepare` (`{ ready }`), `pickPhoto` (`{ uri }`, o `{}` si se cerró la cámara) y `recognize` (`{ text }`, o un error con `code`). La cámara y la lectura de verdad solo se prueban en el celular, con Danzi Pruebas.
+- Leer una foto en el navegador (Leer un texto y Escritura en papel): con la APK simulada, agrega `ChineseOcr` con `prepare` (`{ ready }`), `pickPhoto` (`{ uri }`, o `{}` si se cerró la cámara) y `recognize` (`{ text }`, o un error con `code`). La cámara y la lectura de verdad solo se prueban en el celular, con Danzi Pruebas.
 - Actualización automática en el navegador: compila con `DANZI_VERSION=<número>` y simula `CapacitorUpdater` (`notifyAppReady`, `getFailedUpdate`, `getBuiltinVersion` con `{ version: '1.<número>' }`, `getNextBundle`, `download`, `next`, `addListener` y `removeListener`) y `CapacitorHttp.get`, que responde como GitHub: la versión de la API (`/releases/latest` con sus `assets`), el `actualizacion.json` de cada caso en la dirección de su archivo y, para el paquete con `disableRedirects`, un 302 con `Location`. Si la API falla, la app pide el aviso a la dirección de la web. Para recargar con el `addInitScript` puesto, cambia algo más que el `#` de la dirección (por ejemplo `?r=1#ajustes`): si solo cambia el `#`, la página no se recarga.
 - Sincronización en el navegador: desde aquí no se llega a Supabase. Compila con `DANZI_SUPABASE_URL=https://<algo>.supabase.co` y `DANZI_SUPABASE_KEY=<algo>` y responde con `page.route`, como Supabase:
   - Auth: `POST /auth/v1/signup` (crear la cuenta) y `POST /auth/v1/token?grant_type=password` (entrar) devuelven la sesión (`access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`); además `POST /auth/v1/token?grant_type=refresh_token` y `POST /auth/v1/logout`. Los errores llevan `error_code` (por ejemplo `invalid_credentials` o `user_already_exists`) y `msg`.

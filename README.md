@@ -5,6 +5,7 @@ App para aprender chino mandarín desde el español, siguiendo el temario oficia
 - **Xi Bao (喜宝)**, el panda de Danzi: te saluda, te anima según cómo va tu día y, si lo tocas, te dice una frase en chino en voz alta, con su pinyin y su traducción. También te escribe el recordatorio.
 - **Tarjetas** con repaso espaciado (FSRS, el algoritmo de Anki): carácter al frente; pinyin, significado y ejemplo al voltear.
 - **Escritura** con el dedo, trazo a trazo, con su propio repaso espaciado. Los trazos se descargan al instalar la app, así que también funciona sin internet.
+- **Escritura en papel** (en la APK): Danzi te dice una palabra que ya estudias; la escribes a mano en un papel y le tomas una foto. Si la escribiste de memoria y Danzi la lee bien, ganas 2 monedas, hasta 10 palabras al día. Escribe grande, con trazos claros y buena luz.
 - **Habla**: ejercicios de tonos de oído y frases para repetir. El micrófono revisa tu pronunciación en Chrome y Safari.
 - **Palabras**: buscador por chino, pinyin o español.
 - **Leer un texto**: pega un texto en chino (en la APK, también tómale una foto o elige una de la galería) y Danzi lo separa en palabras: subraya las que todavía no estudias y, al tocar una, la dice en voz alta y muestra su pinyin, su significado y un ejemplo. En la APK, la foto se lee en el mismo celular, sin internet una vez descargado el lector.

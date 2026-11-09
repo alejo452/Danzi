@@ -11,17 +11,27 @@ export function errorCode(e: unknown): string {
   return typeof code === 'string' ? code : '';
 }
 
+/**
+ * Dónde se toma la foto: en «Leer un texto» (`leer`) también se puede elegir de la galería o pegar el texto; en
+ * «Escritura en papel» (`papel`), no.
+ */
+export type PhotoContext = 'leer' | 'papel';
+
 /** Qué decir cuando no se pudo tomar, elegir o leer la foto: qué pasó y qué hacer. Nunca el mensaje técnico. */
-export function photoErrorMessage(e: unknown, source: PhotoSource): string {
+export function photoErrorMessage(e: unknown, source: PhotoSource, context: PhotoContext = 'leer'): string {
   switch (errorCode(e)) {
     case 'SIN_CAMARA':
-      return 'Este celular no tiene una app de cámara. Elige una foto de la galería.';
+      return context === 'leer'
+        ? 'Este celular no tiene una app de cámara. Elige una foto de la galería.'
+        : 'Este celular no tiene una app de cámara, y este ejercicio la necesita. Practica la escritura en la pestaña Escribir.';
     case 'CAMARA':
       return 'No se pudo abrir la cámara. Vuelve a intentarlo.';
     case 'GALERIA':
       return 'No se pudo abrir la galería. Vuelve a intentarlo.';
     case 'SIN_SERVICIOS':
-      return 'Para leer fotos, Danzi necesita Google Play Services y este celular no lo tiene. Copia el texto con otra app y pégalo aquí.';
+      return context === 'leer'
+        ? 'Para leer fotos, Danzi necesita Google Play Services y este celular no lo tiene. Copia el texto con otra app y pégalo aquí.'
+        : 'Para leer tu letra, Danzi necesita Google Play Services y este celular no lo tiene. Practica la escritura en la pestaña Escribir.';
     case 'DESCARGANDO':
       return 'El lector de chino se está descargando (solo pasa la primera vez y necesita internet). Vuelve a intentarlo en un minuto.';
     case 'FOTO':

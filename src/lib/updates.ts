@@ -184,3 +184,19 @@ export function parseApkVersion(versionName: string): { apk: number; pruebas: bo
 export function versionLabel(version: number): string {
   return `1.${version}`;
 }
+
+/**
+ * Un error del celular en pocas palabras, para el detalle técnico de Ajustes › Actualizaciones: con una captura de
+ * esa pantalla se sabe qué falló (por ejemplo «UnknownHostException: Unable to resolve host…»). Sin direcciones,
+ * que son largas y no aportan.
+ */
+export function describeUpdateError(e: unknown): string {
+  const x = (e && typeof e === 'object' ? e : {}) as { code?: unknown; message?: unknown };
+  const code = typeof x.code === 'string' ? x.code : '';
+  const message = typeof x.message === 'string' ? x.message : typeof e === 'string' ? e : '';
+  const text = (code && !message.startsWith(code) ? [code, message].filter(Boolean).join(': ') : message || 'error desconocido')
+    .replace(/https?:\/\/\S+/g, '…')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text;
+}

@@ -33,6 +33,17 @@ for (const file of files) {
       }
     });
 
+    it('los scripts tienen sintaxis válida de bash, tal como GitHub los lee', () => {
+      // En YAML, « #» sin comillas empieza un comentario: un script en una sola línea puede quedar cortado.
+      const wf = parse(text) as Workflow;
+      for (const [id, job] of Object.entries(wf.jobs ?? {})) {
+        for (const step of job.steps ?? []) {
+          if (!step.run) continue;
+          expect(() => execFileSync('bash', ['-n'], { input: step.run, stdio: ['pipe', 'pipe', 'pipe'] }), `${id}: ${step.run.slice(0, 60)}`).not.toThrow();
+        }
+      }
+    });
+
     it('no le pasa todos los secretos a un script', () => {
       // GitHub marca toJSON(secrets) como posiblemente malicioso y frena el workflow hasta que alguien lo apruebe.
       expect(text).not.toMatch(/toJSON\(\s*secrets\s*\)/);

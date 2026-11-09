@@ -76,7 +76,7 @@ export function decodeReminderCode(text: string): ReminderCode {
   return data;
 }
 
-/** "7:00 p. m." para una hora del día (0–23). */
-export function hourLabel(hour: number): string {
-  return new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' }).format(new Date(2026, 0, 1, hour, 0));
+/** "7:43 a. m." para una hora del día (0–23) y sus minutos (0–59). */
+export function hourLabel(hour: number, minute = 0): string {
+  return new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' }).format(new Date(2026, 0, 1, hour, minute));
 }

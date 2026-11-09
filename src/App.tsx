@@ -12,6 +12,7 @@ import { toast } from './lib/toasts';
 import { updateProgress, useProgress, useProgressLoaded } from './lib/useProgress';
 import { deckFor, newCandidates, useWords } from './lib/useWords';
 import { Home } from './views/Home';
+import { Reader } from './views/Reader';
 import { Review } from './views/Review';
 import { Rewards } from './views/Rewards';
 import { Settings } from './views/Settings';
@@ -20,7 +21,7 @@ import { Stats } from './views/Stats';
 import { Words } from './views/Words';
 import { Write } from './views/Write';
 
-export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes', 'premios', 'estadisticas'] as const;
+export const VIEWS = ['inicio', 'repasar', 'escribir', 'hablar', 'palabras', 'ajustes', 'premios', 'estadisticas', 'leer'] as const;
 export type View = (typeof VIEWS)[number];
 
 function viewFromHash(): View {
@@ -153,7 +154,9 @@ export default function App() {
         ) : view === 'hablar' ? (
           <Speak p={p} words={words} />
         ) : view === 'palabras' ? (
-          <Words p={p} words={words} />
+          <Words p={p} words={words} go={go} />
+        ) : view === 'leer' ? (
+          <Reader p={p} go={go} />
         ) : view === 'premios' ? (
           <Rewards p={p} go={go} />
         ) : view === 'estadisticas' ? (

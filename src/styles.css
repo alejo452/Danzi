@@ -558,3 +558,22 @@ dialog.sheet::backdrop { background: rgba(16, 18, 23, .55); background: var(--ov
 .data-table .n { text-align: right; font-variant-numeric: tabular-nums; }
 .recall { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ── Leer un texto (#leer) ───────────────────────────────────────────────── */
+.btn-line:disabled { opacity: .55; cursor: default; }
+.rd-input { width: 100%; min-height: 112px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-family: var(--font-hz); font-size: 18px; font-weight: 400; line-height: 1.6; resize: vertical; }
+.rd-text { font-family: var(--font-hz); font-size: 24px; line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rd-nb { white-space: nowrap; }
+.rd-word { display: inline; margin: 0; padding: 0 2px; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.rd-word:hover { background: var(--surface-2); }
+.rd-new { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.rd-word[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); text-decoration-color: currentColor; }
+.rd-detail { display: flex; flex-direction: column; gap: 10px; background: var(--bg); border-radius: 14px; padding: 12px; }
+.rd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rd-hz { font-size: 32px; line-height: 1.2; }
+.rd-detail .icon-btn { background: var(--surface); }
+.rd-entry { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.rd-entry + .rd-entry, .rd-ex { border-top: 1px solid var(--line); padding-top: 10px; }
+.rd-ex { display: flex; flex-direction: column; gap: 2px; }
+.rd-ex .hz { font-size: 18px; }
+.rd-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; min-height: 56px; }

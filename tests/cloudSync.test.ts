@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeMeta, syncProgress, SyncConflictError, SyncFormatError, type SyncBackend, type SyncMeta } from '../src/lib/cloudSync';
 import { freshProgress, PROGRESS_VERSION, type Progress } from '../src/lib/progress';
+import { buyOutfit } from '../src/lib/outfits';
 import type { StoredCard } from '../src/lib/srs';
 import { sameProgress } from '../src/lib/sync';
 
@@ -146,6 +147,23 @@ describe('motor de la sincronización', () => {
     expect(d.get().rewards.coins).toBe(17);
     expect(sameProgress(cloud.row!.datos as Progress, d.get())).toBe(true);
     expect(out.meta.rev).toBe(cloud.row!.rev);
+  });
+
+  it('conserva el atuendo y cobra una sola vez si dos compras coinciden durante una subida', async () => {
+    const base = withCards({ a: 1 }, 80);
+    const purchase = buyOutfit(base, 'pijama', new Date('2026-11-09T15:00:00Z'));
+    if (!purchase.ok) throw new Error('La compra debe ser válida');
+    const { cloud, backend } = memoryCloud(base);
+    cloud.beforeUpdate = () => {
+      cloud.row = { datos: clone(purchase.p), rev: 2 };
+    };
+    const d = device(clone(purchase.p));
+    const out = await syncProgress({ backend, user: 'u1', meta: { user: 'u1', rev: 1, base, at: 0 }, getLocal: d.getLocal, setLocal: d.setLocal });
+    expect(d.get().rewards).toMatchObject({ coins: 0, outfit: 'pijama', outfits: ['clasico', 'pijama'] });
+    expect(sameProgress(cloud.row!.datos as Progress, d.get())).toBe(true);
+    const again = await syncProgress({ backend, user: 'u1', meta: out.meta, getLocal: d.getLocal, setLocal: d.setLocal });
+    expect(again.kind).toBe('igual');
+    expect(d.get().rewards.coins).toBe(0);
   });
 
   it('si la primera vez otro dispositivo sube algo en el medio, igual avisa que juntó', async () => {

@@ -2,9 +2,11 @@
 // Los colores salen de los tokens --panda-* de src/styles.css (con versión oscura) y la bufanda
 // usa --accent, así que cambia con el tema de color. Las animaciones están en styles.css.
 import type { Mood } from '../lib/mascot';
+import { DEFAULT_OUTFIT, isOutfitId } from '../lib/outfits';
+import { OutfitBody, OutfitHead } from './XiBaoOutfit';
 
 /** face: solo la cabeza y la bufanda, sin cuerpo (para íconos: el de la app y la imagen del recordatorio). */
-type Props = { mood: Mood; size?: number; face?: boolean; className?: string };
+type Props = { mood: Mood; size?: number; face?: boolean; className?: string; outfit?: string };
 
 /** Brazo como trazo grueso con borde (el borde solo se nota en modo oscuro). */
 function Arm({ d, className = '' }: { d: string; className?: string }) {
@@ -21,7 +23,9 @@ const ARM_REST_R = 'M87 83 Q92 92 86 98';
 const ARM_UP_L = 'M33 81 Q24 74 25 63';
 const ARM_UP_R = 'M87 81 Q96 74 95 63';
 
-export function XiBao({ mood, size = 96, face = false, className = '' }: Props) {
+export function XiBao({ mood, size = 96, face = false, className = '', outfit = DEFAULT_OUTFIT }: Props) {
+  // Los íconos siempre conservan la apariencia original, sin importar el atuendo en uso.
+  const clothes = !face && isOutfitId(outfit) ? outfit : DEFAULT_OUTFIT;
   const leftUp = mood === 'feliz';
   const rightUp = mood === 'feliz' || mood === 'hola' || mood === 'animado';
   const eyes = mood === 'feliz' || mood === 'animado' ? 'happy' : mood === 'dormido' ? 'closed' : 'open';
@@ -29,6 +33,7 @@ export function XiBao({ mood, size = 96, face = false, className = '' }: Props) 
   return (
     <svg
       className={`xb xb-${mood}${className ? ` ${className}` : ''}`}
+      data-outfit={clothes}
       viewBox={face ? '16 4 88 88' : '0 0 120 120'}
       width={size}
       height={size}
@@ -45,6 +50,7 @@ export function XiBao({ mood, size = 96, face = false, className = '' }: Props) 
           <>
             {/* Cuerpo y patas */}
             <path className="xb-fur" d="M28 90 C28 71 42 63 60 63 C78 63 92 71 92 90 C92 104 79 111 60 111 C41 111 28 104 28 90 Z" />
+            <OutfitBody outfit={clothes} />
             <ellipse className="xb-ink" cx="43" cy="106.5" rx="12" ry="7.5" />
             <ellipse className="xb-ink" cx="77" cy="106.5" rx="12" ry="7.5" />
             <ellipse className="xb-pad" cx="43" cy="107" rx="5" ry="3.2" />
@@ -56,9 +62,9 @@ export function XiBao({ mood, size = 96, face = false, className = '' }: Props) 
           </>
         )}
 
-        {/* Bufanda (color del tema) */}
-        <path className="xb-scarf" d="M35 70 Q60 81 85 70 L86 77 Q60 89 34 77 Z" />
-        {!face && <path className="xb-scarf" d="M68 79 L77 94 L70.5 96 L63 81 Z" />}
+        {/* Bufanda del atuendo clásico (color del tema). */}
+        {clothes === 'clasico' && <path className="xb-scarf" d="M35 70 Q60 81 85 70 L86 77 Q60 89 34 77 Z" />}
+        {!face && clothes === 'clasico' && <path className="xb-scarf" d="M68 79 L77 94 L70.5 96 L63 81 Z" />}
 
         {/* Cabeza */}
         <circle className="xb-fur" cx="60" cy="44" r="33" />
@@ -109,6 +115,7 @@ export function XiBao({ mood, size = 96, face = false, className = '' }: Props) 
         {/* Mejillas */}
         <ellipse className="xb-blush" cx="37.5" cy="59.5" rx="5.5" ry="3.2" />
         <ellipse className="xb-blush" cx="82.5" cy="59.5" rx="5.5" ry="3.2" />
+        <OutfitHead outfit={clothes} />
 
         {/* Detalles según el ánimo */}
         {mood === 'feliz' && (

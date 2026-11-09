@@ -3,6 +3,7 @@ import { Coin } from '../components/Coin';
 import { IconBack, IconCheck, IconLock, IconShield } from '../components/Icons';
 import { SealMark } from '../components/SealMark';
 import { Sheet } from '../components/Sheet';
+import { Wardrobe } from '../components/Wardrobe';
 import { fromDayKey, plural } from '../lib/dates';
 import { EARN, MAX_SHIELDS, todayLog, type Progress } from '../lib/progress';
 import { buyShield, buyTheme, sealStats, SEALS, selectTheme, SHIELD_PRICE, THEMES, type Seal } from '../lib/rewards';
@@ -77,6 +78,8 @@ export function Rewards({ p, go }: Props) {
             {SHIELD_PRICE}
           </button>
         </div>
+
+        <Wardrobe p={p} />
 
         <h3 className="label">Temas de color</h3>
         <div className="themes">

@@ -7,13 +7,14 @@
 // - tarjetas: la que se repasó más recientemente;
 // - actividad de cada día, monedas y protectores: se suman los cambios de los dos lados (base + Δlocal + Δremoto),
 //   así cuenta lo que se hizo en cada dispositivo;
-// - sobres rojos, sellos, días salvados y temas comprados: se unen;
-// - ajustes y tema activo: gana el cambio de este dispositivo.
+// - sobres rojos, sellos, días salvados, temas y atuendos comprados: se unen;
+// - ajustes, tema y atuendo activo: gana el cambio de este dispositivo.
 //
 // Sin base (la primera vez en este dispositivo, o después de cargar un archivo) se toma lo mayor de cada lado:
 // la tarjeta más reciente, el máximo de cada contador y de las monedas, la unión de sellos y temas. Así nunca se
 // pierde nada ni se cuenta dos veces lo que ya estaba en los dos lados (por ejemplo, si se pasó con un archivo).
 import { DEFAULT_THEME, MAX_SHIELDS, PROGRESS_VERSION, type DayLog, type Progress, type Rewards, type Settings } from './progress';
+import { DEFAULT_OUTFIT, OUTFITS } from './outfits';
 import type { Deck } from './queue';
 import type { StoredCard } from './srs';
 
@@ -125,18 +126,27 @@ function mergeSettings(base: Settings | undefined, local: Settings, remote: Sett
 function mergeRewards(base: Rewards | undefined, local: Rewards, remote: Rewards, localIsNewer: boolean): Rewards {
   const themes = [...new Set([DEFAULT_THEME, ...local.themes, ...remote.themes])];
   const theme = base ? (local.theme !== base.theme ? local.theme : remote.theme) : localIsNewer ? local.theme : remote.theme;
+  const outfits = [...new Set([DEFAULT_OUTFIT, ...local.outfits, ...remote.outfits])];
+  const outfit = base ? (local.outfit !== base.outfit ? local.outfit : remote.outfit) : localIsNewer ? local.outfit : remote.outfit;
+  // Si dos dispositivos compraron el mismo atuendo desde la misma base, se cobra una sola vez.
+  // Se devuelve el duplicado antes de limitar el saldo a cero (también si ambos gastaron todo).
+  const duplicateOutfitCost = base ? OUTFITS.reduce((sum, item) =>
+    !base.outfits.includes(item.id) && local.outfits.includes(item.id) && remote.outfits.includes(item.id)
+      ? sum + item.price : sum, 0) : 0;
   const seals: Record<string, string> = { ...remote.seals };
   for (const [id, day] of Object.entries(local.seals)) if (!seals[id] || day < seals[id]) seals[id] = day;
   const envelopes: Record<string, number> = { ...remote.envelopes };
   for (const [day, n] of Object.entries(local.envelopes)) envelopes[day] = Math.max(n, envelopes[day] ?? 0);
   return {
-    coins: mergeCount(base?.coins, local.coins, remote.coins),
+    coins: base ? Math.max(0, local.coins + remote.coins - base.coins + duplicateOutfitCost) : mergeCount(undefined, local.coins, remote.coins),
     envelopes,
     seals,
     shields: Math.min(MAX_SHIELDS, mergeCount(base?.shields, local.shields, remote.shields)),
     shielded: [...new Set([...local.shielded, ...remote.shielded])].sort(),
     theme: themes.includes(theme) ? theme : DEFAULT_THEME,
     themes,
+    outfit: outfits.includes(outfit) ? outfit : DEFAULT_OUTFIT,
+    outfits,
   };
 }
 

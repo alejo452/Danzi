@@ -50,11 +50,18 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
   - Recordatorio de la APK: el celular lo programa con `@capacitor/local-notifications`, sin GitHub. `src/lib/localReminders.ts` decide los avisos de los próximos 14 días (funciones puras); `src/native/reminders.ts` los programa y se reprograma cuando cambia el progreso; `src/components/LocalReminderPanel.tsx` es su sección de Ajustes. La hora se guarda en IndexedDB con la clave `reminder-local`.
   - `src/native/speech.ts`: en la APK, la voz usa los motores de Android (`@capacitor-community/text-to-speech` y `speech-recognition`), porque la vista web de Android no trae la voz de Chrome. `src/lib/speech.ts` elige cuál usar.
   - Actualización automática de la APK (`@capgo/capacitor-updater` en modo manual, sin los servidores de Capgo):
-    - `src/native/updates.ts`: al abrir la app confirma que la versión arrancó (`notifyAppReady`), busca en Releases `actualizacion.json`, descarga `danzi-web.zip` (el plugin comprueba su SHA-256) y lo deja para la próxima vez que la app pase a segundo plano. Si una versión nueva no confirma en 15 segundos, el plugin vuelve a la anterior y esa versión no se reintenta. «Danzi Pruebas» no se actualiza sola.
+    - `src/native/updates.ts`: al abrir la app confirma que la versión arrancó (`notifyAppReady`), busca en Releases `actualizacion.json`, descarga `danzi-web.zip` (el plugin comprueba su SHA-256) y lo deja para la próxima vez que la app pase a segundo plano. Si una versión nueva no confirma en 15 segundos, el plugin vuelve a la anterior y esa versión no se reintenta. «Danzi Pruebas» sigue, en cambio, las versiones de prueba (ver abajo).
     - `src/lib/updates.ts`: funciones puras (leer el aviso, decidir qué hacer, la versión de la APK a partir de su `versionName`). El estado se guarda en IndexedDB con la clave `actualizacion`, fuera de `Progress`.
     - `src/components/UpdatePanel.tsx`: Ajustes › Actualizaciones, con la versión, el estado y, si hace falta, el enlace a la APK nueva.
     - `scripts/update-manifest.mjs`: arma `actualizacion.json` en el workflow (ver Despliegue).
     - La versión de la parte web es `__DANZI_VERSION__`, que `vite.config.ts` toma de `DANZI_VERSION` (el número de ejecución del workflow, el mismo de la APK). En las compilaciones locales vale 0 y la app no busca actualizaciones.
+  - Versiones de prueba («Danzi Pruebas», mismo código que la actualización automática):
+    - Cada pull request publica su versión de prueba en Releases, como versión preliminar `pruebas-pr-<número>` (`danzi-pruebas.apk`, `danzi-web.zip` y `actualizacion.json` con `pr` y `huellaNativa`).
+    - La parte web sabe de qué pull request sale (`__DANZI_PR__`, de `DANZI_PR`) y con qué parte de Android se compiló (`__DANZI_HUELLA__`, de `DANZI_HUELLA`, que da `node scripts/update-manifest.mjs --huella`).
+    - Al abrir la versión que trae la APK, Danzi Pruebas guarda esa huella (estado `actualizacion`, campo `apk`). Una versión de prueba sirve sin reinstalar si su `huellaNativa` es igual; si no, Ajustes da el enlace a la APK de prueba de ese pull request.
+    - Sigue el pull request del que sale su versión, o el que se elija en Ajustes › Versiones de prueba (campo `pr`). La lista sale de la API de GitHub (`/releases`, sin token). Al elegir uno, la versión se usa de una vez (`set`). «Volver a la versión de la APK» hace `reset`.
+    - `.github/pruebas/`: la llave de pruebas (`danzi-pruebas.p12`, contraseña `danzi-pruebas`) y su huella. Firma todas las «Danzi Pruebas», así que una nueva se instala encima de la anterior.
+    - `.github/workflows/pruebas.yml`: publica la versión de prueba cuando termina la compilación del pull request y la borra cuando se cierra.
   - `src/native/files.ts` y `android/app/src/main/java/io/github/alejo452/danzi/SaveFilePlugin.java`: en la APK, «Descargar» abre el diálogo «Guardar en…» de Android, porque la vista web no descarga archivos. `MainActivity.java` registra ese complemento y pone el fondo de la app mientras carga.
   - `scripts/android-signing.mjs` (crea y lee el código de la llave de firma) y `android/firma-sha256.txt` (huella pública de la llave).
   - `.github/workflows/android.yml`: compila y publica la APK (ver Despliegue).
@@ -73,12 +80,14 @@ App para aprender chino mandarín desde el español, siguiendo el **HSK 3.0** (�
 4. **Los ids de los sellos y de los temas no cambian.** Son las claves en `progress.rewards` (`SEALS` y `THEMES` en `src/lib/rewards.ts`). Para cambiar lo que pide o paga un sello, cambia `goal` o `coins`, nunca el `id`.
 5. **El recordatorio es de cada dispositivo.** Se guarda en IndexedDB con la clave `reminder`, fuera de `Progress`, para que no pase a otro dispositivo al descargar y cargar el progreso. El código lleva claves privadas: nunca lo imprimas ni lo guardes en el repositorio.
 6. **Los workflows reciben solo los secretos que usan.** Nunca pases `toJSON(secrets)` a un script: GitHub lo marca como posiblemente malicioso y frena el workflow hasta que alguien lo apruebe. Nombra cada secreto (`${{ secrets.DANZI_RECORDATORIO }}`) y dáselo solo al paso que lo necesita. `tests/workflows.test.ts` lo comprueba.
+   - `pruebas.yml` puede escribir en Releases y corre con el código de `main`: nunca descargues ni ejecutes ahí el código del pull request (ni `actions/checkout`), y pasa los datos del pull request (número, título) en `env`, nunca con `${{ }}` dentro del script. La compilación del pull request (`android.yml`, trabajo `pruebas`) no recibe secretos ni permiso de escritura.
 7. **La APK no cambia de identidad.**
    - No cambies el `appId` (`io.github.alejo452.danzi`) ni el origen de la página (Capacitor la sirve desde `https://localhost`): el progreso de la APK vive en ese origen.
    - La llave de firma (secreto `DANZI_FIRMA_ANDROID`, huella en `android/firma-sha256.txt`) no se cambia, nunca se imprime y nunca se guarda en el repositorio. Con otra llave, Android no deja instalar la versión nueva encima.
    - Nunca recomiendes desinstalar la APK normal: desinstalarla borra el progreso. «Danzi Pruebas» sí se puede desinstalar.
    - No quites `notifyAppReady` del arranque (`startUpdates` en `App.tsx`): sin él, el plugin cree que la versión falló y vuelve a la anterior. No cambies el formato de `versionName` (`1.<número>`, con `-pruebas` en «Danzi Pruebas»): de ahí sale la versión de la APK.
    - Las estadísticas y búsquedas de Capgo están apagadas (`statsUrl`, `updateUrl` y `channelUrl` vacíos en `capacitor.config.ts`). No las actives: mandarían datos del celular a un servidor ajeno.
+   - La llave de pruebas (`.github/pruebas/danzi-pruebas.p12`) es pública a propósito: solo firma «Danzi Pruebas», que tiene su propio progreso de prueba. Nunca firmes la app normal con ella, y no la cambies: las «Danzi Pruebas» instaladas dejarían de actualizarse encima.
 8. **La versión web no carga código de la APK.** Lo de Android va en `src/native/` y se importa con `import()` detrás de `isNative`. `vite.config.ts` nombra esos archivos `native-*.js` y el service worker no los guarda. No uses `manualChunks`: arrastra módulos compartidos a esos archivos y la web los cargaría al abrir. Después de tocarlo, revisa que `dist/assets/index-*.js` no tenga un `import … from "./native-…"`.
 
 ## Cómo agregar un nivel (por ejemplo, HSK 2)
@@ -131,7 +140,9 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 `.github/workflows/android.yml` compila la APK:
 - En cada push a `main` (salvo cambios solo en `.md`), firma la APK normal con `DANZI_FIRMA_ANDROID`, comprueba que la huella coincida con `android/firma-sha256.txt` y la publica en Releases como `danzi.apk`. El enlace fijo es `https://github.com/alejo452/Danzi/releases/latest/download/danzi.apk`. `versionCode` es el número de ejecución del workflow, que siempre sube.
 - Junto a `danzi.apk` publica `danzi-web.zip` (el `dist/` de esa misma compilación) y `actualizacion.json` (versión, URL del zip, SHA-256 y `apkMinima`). `apkMinima` es la APK más antigua que puede usar esa parte web: `scripts/update-manifest.mjs` calcula una huella de la parte de Android (archivos de `android/` en el commit, `capacitor.config.ts` y versiones de los complementos de Capacitor) y, si es la misma del aviso anterior, mantiene su `apkMinima`; si cambió, la sube a esta versión y las APK anteriores piden instalar la nueva.
-- En cada pull request compila «Danzi Pruebas» y la deja como artefacto `danzi-pruebas`, sin secretos.
+- En cada pull request compila «Danzi Pruebas» sin secretos, la firma con la llave de pruebas (`apksigner`, y comprueba la huella de `.github/pruebas/firma-sha256.txt`) y deja el artefacto `danzi-pruebas` con la APK, `danzi-web.zip` y su `actualizacion.json` (`--pruebas <número>`).
+
+`.github/workflows/pruebas.yml` («Versiones de prueba») se dispara cuando termina bien la compilación de un pull request (`workflow_run`): descarga ese artefacto, comprueba que el aviso sea de ese pull request y que el zip coincida, y lo publica como versión preliminar `pruebas-pr-<número>` (nunca como la más reciente, que es la de la app normal). Al cerrarse el pull request (`pull_request_target`), la borra con su etiqueta. Como todo `workflow_run`, solo funciona con el archivo ya en `main`.
 
 ## Flujo de trabajo
 
@@ -172,9 +183,9 @@ Cada push a `main` ejecuta `.github/workflows/deploy.yml`, que corre las pruebas
 
   Así `isNative` es true y las llamadas a los complementos llegan a tus funciones simuladas. Las notificaciones, la voz y «Guardar en…» de verdad solo se prueban en el celular.
 - Actualización automática en el navegador: compila con `DANZI_VERSION=<número>` y simula `CapacitorUpdater` (`notifyAppReady`, `getFailedUpdate`, `getBuiltinVersion` con `{ version: '1.<número>' }`, `getNextBundle`, `download`, `next`) y `CapacitorHttp.get`, que devuelve el `actualizacion.json` de cada caso. Para recargar con el `addInitScript` puesto, cambia algo más que el `#` de la dirección (por ejemplo `?r=1#ajustes`): si solo cambia el `#`, la página no se recarga.
+- Danzi Pruebas en el navegador: compila con `DANZI_VERSION`, `DANZI_PR` y `DANZI_HUELLA` (64 caracteres hexadecimales), usa `getBuiltinVersion` con `'1.<número>-pruebas'` y responde en `CapacitorHttp.get` la lista de `https://api.github.com/repos/alejo452/Danzi/releases` y el `actualizacion.json` de cada `pruebas-pr-<número>` (o un 404). Simula también `set` y `reset`.
 
 ## Pendiente (ideas acordadas, en orden)
 
-1. APK, tercera parte: «Danzi Pruebas» recibe la versión de cada pull request para probarla en el celular antes de fusionar, con una llave de prueba fija para no tener que desinstalarla entre versiones.
-2. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas).
-3. Estadísticas de retención y tiempo de estudio.
+1. Sincronización entre dispositivos, con cuenta e inicio de sesión (Supabase). Mientras tanto, el progreso se pasa con Ajustes › Descargar y Cargar archivo (que ya incluye monedas, sellos y temas).
+2. Estadísticas de retención y tiempo de estudio.

@@ -125,13 +125,87 @@ describe('workflow android.yml: actualización automática', () => {
     }
   });
 
+  it('la app web sabe la huella de la parte de Android', () => {
+    for (const id of ['pruebas', 'publicar']) {
+      const steps = jobs[id]?.steps ?? [];
+      const huella = steps.findIndex((st) => st.run?.includes('update-manifest.mjs --huella') && st.run.includes('DANZI_HUELLA='));
+      const build = steps.findIndex((st) => st.run?.trim() === 'npm run build');
+      expect(huella, `${id}: falta calcular DANZI_HUELLA`).toBeGreaterThan(-1);
+      expect(build, `${id}: calcula la huella después de compilar`).toBeGreaterThan(huella);
+    }
+  });
+
   it('publica la parte web y su aviso junto a la APK', () => {
     const steps = jobs.publicar?.steps ?? [];
-    const prepare = steps.findIndex((st) => st.run?.includes('scripts/update-manifest.mjs'));
+    const prepare = steps.findIndex((st) => st.run?.includes('scripts/update-manifest.mjs') && st.run.includes('danzi-web.zip'));
     const publish = steps.findIndex((st) => st.run?.includes('gh release create'));
     expect(prepare, 'falta el paso que prepara actualizacion.json').toBeGreaterThan(-1);
     expect(publish).toBeGreaterThan(prepare);
     expect(steps[prepare].run).toContain('danzi-web.zip');
     for (const asset of ['danzi.apk', 'danzi-web.zip', 'actualizacion.json']) expect(steps[publish].run).toContain(` ${asset}`);
+  });
+});
+
+describe('versiones de prueba de cada pull request', () => {
+  const android = parse(fs.readFileSync(path.join(dir, 'android.yml'), 'utf8')) as Workflow;
+  const pruebas = (android.jobs ?? {}).pruebas?.steps ?? [];
+  const text = fs.readFileSync(path.join(dir, 'pruebas.yml'), 'utf8');
+  const wf = parse(text) as Workflow & { permissions?: Record<string, string> };
+  type FullStep = Step & { with?: Record<string, string> };
+  const steps = (id: string) => (wf.jobs?.[id]?.steps ?? []) as FullStep[];
+
+  it('la compilación del pull request sabe de qué pull request sale', () => {
+    const build = pruebas.find((st) => st.run?.trim() === 'npm run build');
+    expect(build?.env?.DANZI_PR).toBe('${{ github.event.pull_request.number }}');
+  });
+
+  it('firma Danzi Pruebas con la llave de pruebas y comprueba su huella', () => {
+    const sign = pruebas.find((st) => st.run?.includes('apksigner'))?.run ?? '';
+    expect(sign).toContain('--ks .github/pruebas/danzi-pruebas.p12');
+    expect(sign).toContain('.github/pruebas/firma-sha256.txt');
+    expect(fs.readFileSync('.github/pruebas/firma-sha256.txt', 'utf8').trim()).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('el artefacto lleva la APK de prueba, la parte web y el aviso del pull request', () => {
+    const prepare = pruebas.find((st) => st.run?.includes('--pruebas "$PR"'));
+    expect(prepare?.env?.PR).toBe('${{ github.event.pull_request.number }}');
+    const upload = pruebas.find((st) => st.uses?.startsWith('actions/upload-artifact')) as FullStep | undefined;
+    expect(upload?.with?.name).toBe('danzi-pruebas');
+    for (const f of ['danzi-pruebas.apk', 'danzi-web.zip', 'actualizacion.json']) expect(upload?.with?.path).toContain(f);
+  });
+
+  it('publica con el código de main, sin descargar ni ejecutar el código del pull request', () => {
+    expect(Object.keys(wf.on ?? {}).sort()).toEqual(['pull_request_target', 'workflow_run']);
+    for (const id of Object.keys(wf.jobs ?? {})) {
+      for (const st of steps(id)) {
+        expect(st.uses, `${id}: no debe usar acciones (ni actions/checkout)`).toBeUndefined();
+        expect(secretNames(st.env), `${id}: no usa secretos`).toEqual([]);
+        // Los datos del pull request (título, rama…) llegan en env, nunca dentro del script.
+        expect(st.run, `${id}: expresión dentro del script`).not.toMatch(/\$\{\{/);
+      }
+    }
+    expect(text).not.toMatch(/secrets\./);
+  });
+
+  it('solo publica las compilaciones exitosas de pull requests', () => {
+    const cond = wf.jobs?.publicar?.if ?? '';
+    expect(cond).toContain("github.event.workflow_run.event == 'pull_request'");
+    expect(cond).toContain("github.event.workflow_run.conclusion == 'success'");
+    expect(wf.jobs?.limpiar?.if).toContain("github.event_name == 'pull_request_target'");
+  });
+
+  it('nunca toca la versión más reciente de la app normal', () => {
+    const run = steps('publicar').map((st) => st.run ?? '').join('\n');
+    expect(run).toContain('tag="pruebas-pr-$PR"');
+    expect(run).toMatch(/gh release create "\$tag"[^\n]*--prerelease --latest=false/);
+    expect(run).toMatch(/gh release edit "\$tag"[^\n]*--prerelease/);
+    expect(run).not.toMatch(/android-/);
+    expect(steps('limpiar')[0]?.run).toContain('gh release delete "pruebas-pr-$PR"');
+  });
+
+  it('comprueba que el aviso sea de ese pull request y que el zip coincida', () => {
+    const run = steps('publicar').map((st) => st.run ?? '').join('\n');
+    expect(run).toContain('m.pr !== pr');
+    expect(run).toContain('m.sha256 !== sha');
   });
 });

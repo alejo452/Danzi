@@ -5,7 +5,9 @@ name: APK de Android
 #   y se publica en Releases. Enlace fijo para descargarla en el celular:
 #   https://github.com/<usuario>/<repo>/releases/latest/download/danzi.apk
 # - En cada pull request se compila la versión de pruebas («Danzi Pruebas»), que se instala al lado de la
-#   normal con su propio progreso. Queda como artefacto del workflow, para probarla antes de fusionar.
+#   normal con su propio progreso. Se firma con la llave de pruebas (.github/pruebas, pública a propósito), así
+#   que una nueva se instala encima de la anterior. Queda como artefacto (danzi-pruebas) con su parte web y su
+#   aviso, y el workflow «Versiones de prueba» (pruebas.yml) la publica en Releases como pruebas-pr-<número>.
 # La llave solo llega al paso que compila la APK normal. Antes de publicar se comprueba que la APK quedó
 # firmada con la llave de siempre (android/firma-sha256.txt): con otra, Android no la deja instalar encima.
 # Junto a la APK se publican la parte web (danzi-web.zip) y el aviso actualizacion.json: con ellos, la APK
@@ -43,9 +45,13 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm ci
+      - name: Huella de la parte de Android
+        run: echo "DANZI_HUELLA=$(node scripts/update-manifest.mjs --huella)" >> "$GITHUB_ENV"
       - name: Compilar la app web
         env:
           DANZI_VERSION: ${{ github.run_number }}
+          # La versión de prueba sabe de qué pull request sale: Danzi Pruebas sigue sus versiones nuevas.
+          DANZI_PR: ${{ github.event.pull_request.number }}
         run: npm run build
       - run: npx cap sync android
       - name: Compilar Danzi Pruebas
@@ -53,11 +59,34 @@ jobs:
         env:
           N: ${{ github.run_number }}
         run: ./gradlew assembleDebug -PversionCode="$N" -PversionName="1.$N" --console=plain
-      - run: mv android/app/build/outputs/apk/debug/app-debug.apk danzi-pruebas.apk
+      - name: Firmar con la llave de pruebas
+        run: |
+          # Todas las versiones de prueba llevan la misma firma: una nueva se instala encima de la anterior.
+          # La llave (.github/pruebas) es pública a propósito y solo sirve para «Danzi Pruebas».
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          "$apksigner" sign --ks .github/pruebas/danzi-pruebas.p12 --ks-pass pass:danzi-pruebas --ks-key-alias pruebas --out danzi-pruebas.apk android/app/build/outputs/apk/debug/app-debug.apk
+          got="$("$apksigner" verify --print-certs danzi-pruebas.apk | sed -n 's/^.*certificate SHA-256 digest: //p' | sort -u)"
+          want="$(tr -d '[:space:]' < .github/pruebas/firma-sha256.txt)"
+          echo "Huella de la APK de prueba: ${got:-ninguna}. Huella esperada: $want"
+          if [ -z "$got" ] || [ "$got" != "$want" ]; then
+            echo "::error::La APK de prueba no quedó firmada con la llave de pruebas (.github/pruebas/firma-sha256.txt)."
+            exit 1
+          fi
+      - name: Preparar la versión de prueba
+        env:
+          N: ${{ github.run_number }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          (cd dist && zip -qr -X ../danzi-web.zip .)
+          node scripts/update-manifest.mjs "$N" danzi-web.zip --pruebas "$PR" > actualizacion.json
+          cat actualizacion.json
       - uses: actions/upload-artifact@v4
         with:
           name: danzi-pruebas
-          path: danzi-pruebas.apk
+          path: |
+            danzi-pruebas.apk
+            danzi-web.zip
+            actualizacion.json
           retention-days: 14
 
   publicar:
@@ -79,6 +108,8 @@ jobs:
           cache: gradle
       - run: npm ci
       - run: npm test
+      - name: Huella de la parte de Android
+        run: echo "DANZI_HUELLA=$(node scripts/update-manifest.mjs --huella)" >> "$GITHUB_ENV"
       - name: Compilar la app web
         env:
           # La misma versión de la APK (1.<número>): la app la usa para saber si hay una versión más nueva.

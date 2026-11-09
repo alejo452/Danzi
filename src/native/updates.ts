@@ -29,6 +29,7 @@ import {
   addFailed,
   decideTestUpdate,
   decideUpdate,
+  describeUpdateError,
   normalizeUpdateState,
   parseApkVersion,
   parseManifest,
@@ -59,9 +60,12 @@ export type UpdateStatus =
   | { kind: 'necesita-apk'; version: number; apkUrl: string; pr?: number }
   /** Esa versión no arrancó en este celular: sigue la anterior. */
   | { kind: 'fallo'; version: number }
-  | { kind: 'sin-conexion' }
+  /** No se pudo leer el aviso de la versión nueva. `detalle`: qué falló, para el detalle técnico. */
+  | { kind: 'sin-conexion'; detalle: string }
+  /** Hay una versión nueva, pero no se pudo descargar o dejar lista. */
+  | { kind: 'descarga-fallida'; version: number; detalle: string; pr?: number }
   /** El plugin no respondió. */
-  | { kind: 'error' }
+  | { kind: 'error'; detalle: string }
   /** Compilación local, sin número de versión. */
   | { kind: 'desarrollo' }
   /** «Danzi Pruebas»: no hay versión de prueba publicada de ese pull request (se cerró o todavía no sale). */
@@ -126,7 +130,7 @@ let checking: Promise<void> | null = null;
 
 /** Se llama una vez, al abrir la app (App.tsx). Nunca falla: si el plugin no responde, el estado queda en «error». */
 export function startUpdates(): Promise<void> {
-  started ??= start().catch(() => setStatus({ kind: 'error' }));
+  started ??= start().catch((e) => setStatus({ kind: 'error', detalle: describeUpdateError(e) }));
   return started;
 }
 
@@ -163,21 +167,39 @@ export function checkForUpdate(force: boolean): Promise<void> {
   return checking;
 }
 
-type Fetched = { status: number; data: unknown } | null;
+/** La respuesta de GitHub, o qué falló si no hubo respuesta (sin conexión, certificado, tiempo agotado…). */
+type Fetched = { status: number; data: unknown } | { error: string };
 
 async function fetchText(url: string, headers: Record<string, string> = {}): Promise<Fetched> {
-  try {
-    const res = await CapacitorHttp.get({
-      url,
-      headers: { 'Cache-Control': 'no-cache', ...headers },
-      responseType: 'text',
-      connectTimeout: 15_000,
-      readTimeout: 15_000,
-    });
-    return { status: res.status, data: res.data };
-  } catch {
-    return null;
+  let error = '';
+  // Dos intentos: al abrir la app, la conexión a veces tarda un momento en estar lista.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise((ok) => setTimeout(ok, 2000));
+    try {
+      const res = await CapacitorHttp.get({
+        url,
+        headers: { 'Cache-Control': 'no-cache', ...headers },
+        responseType: 'text',
+        connectTimeout: 15_000,
+        readTimeout: 15_000,
+      });
+      return { status: res.status, data: res.data };
+    } catch (e) {
+      error = describeUpdateError(e);
+    }
   }
+  return { error };
+}
+
+/** El aviso de la versión nueva, si GitHub lo entregó bien. */
+function manifestFrom(res: Fetched): UpdateManifest | null {
+  return 'error' in res || res.status !== 200 ? null : parseManifest(res.data);
+}
+
+/** Por qué no sirvió el aviso, para el detalle técnico. */
+function manifestProblem(res: Fetched): string {
+  if ('error' in res) return res.error;
+  return res.status === 200 ? 'el aviso no tiene el formato esperado' : `GitHub respondió ${res.status}`;
 }
 
 /** La versión descargada que espera para la próxima vez (0 si no hay). */
@@ -189,18 +211,27 @@ async function pendingBundle(): Promise<{ id: string; version: number } | null> 
 
 /**
  * Descarga el paquete web. `apply`: usarlo ya (la app se recarga); si no, queda para la próxima vez.
- * Devuelve false si no se pudo descargar.
+ * Devuelve vacío si salió bien, o el detalle técnico de qué falló.
  */
-async function install(manifest: UpdateManifest, pending: { id: string } | null, apply: boolean): Promise<boolean> {
+async function install(manifest: UpdateManifest, pending: { id: string } | null, apply: boolean): Promise<string> {
+  // Hasta dónde llegó, según el plugin: hasta 70 % es la descarga; 71 %, la huella SHA-256; de 75 % a 90 %, descomprimir.
+  let percent = 0;
+  const progress = await CapacitorUpdater.addListener('download', (e) => {
+    percent = Math.max(percent, Number(e?.percent) || 0);
+  }).catch(() => null);
   try {
     const bundle = await CapacitorUpdater.download({ url: manifest.url, version: String(manifest.version), checksum: manifest.sha256 });
     // La versión que esperaba antes ya no hace falta.
     if (pending && pending.id !== bundle.id) await CapacitorUpdater.delete({ id: pending.id }).catch(() => undefined);
     if (apply) await CapacitorUpdater.set({ id: bundle.id });
     else await CapacitorUpdater.next({ id: bundle.id });
-    return true;
-  } catch {
-    return false;
+    return '';
+  } catch (e) {
+    // La misma dirección por otro camino: si responde, la red está bien y el problema es el paquete o el plugin.
+    const direct = await fetchText(manifest.url, { Range: 'bytes=0-15' });
+    return `${describeUpdateError(e)} (llegó al ${percent} %). Descarga directa: ${'error' in direct ? direct.error : `responde ${direct.status}`}.`;
+  } finally {
+    await progress?.remove().catch(() => undefined);
   }
 }
 
@@ -215,9 +246,9 @@ async function check(force: boolean): Promise<void> {
   if (!waiting) setStatus({ kind: 'revisando' });
 
   const res = await fetchText(MANIFEST_URL);
-  const manifest = res?.status === 200 ? parseManifest(res.data) : null;
+  const manifest = manifestFrom(res);
   if (!manifest) {
-    setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'sin-conexion' });
+    setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'sin-conexion', detalle: manifestProblem(res) });
     return;
   }
   state = { ...(await loadState()), revisada: now };
@@ -230,8 +261,9 @@ async function check(force: boolean): Promise<void> {
   if (waiting >= manifest.version) return setStatus({ kind: 'lista', version: waiting });
 
   setStatus({ kind: 'descargando', version: manifest.version });
-  const ok = await install(manifest, pending, false);
-  setStatus(ok ? { kind: 'lista', version: manifest.version } : waiting ? { kind: 'lista', version: waiting } : { kind: 'sin-conexion' });
+  const problem = await install(manifest, pending, false);
+  if (!problem) setStatus({ kind: 'lista', version: manifest.version });
+  else setStatus(waiting ? { kind: 'lista', version: waiting } : { kind: 'descarga-fallida', version: manifest.version, detalle: problem });
 }
 
 /** «Danzi Pruebas»: busca la versión de prueba del pull request que sigue. `apply`: usarla ya (al elegirla). */
@@ -245,9 +277,9 @@ async function checkTest(force: boolean, apply: boolean): Promise<void> {
   const pending = await pendingBundle();
   setStatus({ kind: 'revisando' });
   const res = await fetchText(testManifestUrl(pr));
-  if (res?.status === 404) return setStatus({ kind: 'sin-version-prueba', pr });
-  const manifest = res?.status === 200 ? parseManifest(res.data) : null;
-  if (!manifest) return setStatus({ kind: 'sin-conexion' });
+  if (!('error' in res) && res.status === 404) return setStatus({ kind: 'sin-version-prueba', pr });
+  const manifest = manifestFrom(res);
+  if (!manifest) return setStatus({ kind: 'sin-conexion', detalle: manifestProblem(res) });
   state = { ...(await loadState()), revisada: now };
   await saveState(state);
 
@@ -260,15 +292,15 @@ async function checkTest(force: boolean, apply: boolean): Promise<void> {
   if (!apply && pending?.version === manifest.version) return setStatus({ kind: 'lista', version: manifest.version, pr });
 
   setStatus({ kind: 'descargando', version: manifest.version, pr });
-  const ok = await install(manifest, pending, apply);
-  if (!ok) return setStatus({ kind: 'sin-conexion' });
+  const problem = await install(manifest, pending, apply);
+  if (problem) return setStatus({ kind: 'descarga-fallida', version: manifest.version, detalle: problem, pr });
   setStatus(apply ? { kind: 'aplicando', version: manifest.version, pr } : { kind: 'lista', version: manifest.version, pr });
 }
 
 /** «Danzi Pruebas»: los pull requests abiertos con versión de prueba. null si no se pudo cargar la lista. */
 export async function listTestReleases(): Promise<TestRelease[] | null> {
   const res = await fetchText(TEST_RELEASES_API, { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' });
-  return res?.status === 200 ? parseTestReleases(res.data) : null;
+  return 'error' in res || res.status !== 200 ? null : parseTestReleases(res.data);
 }
 
 /** «Danzi Pruebas»: cambia a la versión de prueba de este pull request (la descarga y la usa ya). */

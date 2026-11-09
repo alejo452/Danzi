@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { versionLabel, type TestRelease } from '../lib/updates';
+import { APK_URL, describeUpdateError, testApkUrl, versionLabel, type TestRelease } from '../lib/updates';
 import type { UpdateStatus } from '../native/updates';
 
 // Ajustes › Actualizaciones, solo en la APK: qué versión tiene y si hay una nueva (src/native/updates.ts).
@@ -53,9 +53,32 @@ function statusText(s: UpdateStatus, pruebas: boolean) {
         </p>
       );
     case 'sin-conexion':
-      return <p className="note" role="status">No se pudo buscar la versión nueva. Revisa la conexión a internet y vuelve a intentarlo.</p>;
+      return (
+        <>
+          <p className="warn" role="status">
+            No se pudo revisar si hay una versión nueva. Si tienes internet, toca «Buscar actualización» para intentarlo otra vez.
+          </p>
+          {!pruebas && <InstallApk url={APK_URL} />}
+          <Detail text={s.detalle} />
+        </>
+      );
+    case 'descarga-fallida':
+      return (
+        <>
+          <p className="warn" role="status">
+            Hay una versión nueva ({versionLabel(s.version)}{del(s.pr)}), pero no se pudo descargar. Toca «Buscar actualización» para intentarlo otra vez.
+          </p>
+          {(!pruebas || !!s.pr) && <InstallApk url={s.pr ? testApkUrl(s.pr) : APK_URL} />}
+          <Detail text={s.detalle} />
+        </>
+      );
     case 'error':
-      return <p className="note" role="status">No se pudo revisar si hay una versión nueva. Cierra Danzi, ábrela de nuevo y vuelve a intentarlo.</p>;
+      return (
+        <>
+          <p className="note" role="status">No se pudo revisar si hay una versión nueva. Cierra Danzi, ábrela de nuevo y vuelve a intentarlo.</p>
+          <Detail text={s.detalle} />
+        </>
+      );
     case 'desarrollo':
       return <p className="note" role="status">Esta APK se compiló sin número de versión, así que no busca actualizaciones.</p>;
     case 'sin-version-prueba':
@@ -68,6 +91,21 @@ function statusText(s: UpdateStatus, pruebas: boolean) {
     case 'sin-pr':
       return <p className="note" role="status">Elige un pull request de la lista para probar su versión.</p>;
   }
+}
+
+/** Si la actualización sola falla, la APK más reciente se instala encima y trae la versión nueva. */
+function InstallApk({ url }: { url: string }) {
+  return (
+    <>
+      <p className="note">Si sigue pasando, instala la APK más reciente encima de esta: no se pierde el progreso.</p>
+      <a className="btn-line" href={url}>Descargar la APK más reciente</a>
+    </>
+  );
+}
+
+/** Qué falló exactamente. Con una captura de esta pantalla se sabe la causa. */
+function Detail({ text }: { text: string }) {
+  return text ? <p className="note">Detalle técnico: {text}</p> : null;
 }
 
 export function UpdatePanel() {
@@ -103,7 +141,7 @@ export function UpdatePanel() {
           if (m.isPruebas()) void loadTests();
         });
       })
-      .catch(() => alive && setStatus({ kind: 'error' }));
+      .catch((e) => alive && setStatus({ kind: 'error', detalle: describeUpdateError(e) }));
     return () => {
       alive = false;
       off();

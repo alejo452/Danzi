@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  describeUpdateError,
   APK_URL,
   CHECK_EVERY_MS,
   MANIFEST_URL,
@@ -199,5 +200,28 @@ describe('versiones de prueba («Danzi Pruebas»)', () => {
     expect(TEST_CHECK_EVERY_MS).toBeLessThan(CHECK_EVERY_MS);
     expect(shouldCheck(1000, 1000 + TEST_CHECK_EVERY_MS, TEST_CHECK_EVERY_MS)).toBe(true);
     expect(shouldCheck(1000, 1000 + TEST_CHECK_EVERY_MS - 1, TEST_CHECK_EVERY_MS)).toBe(false);
+  });
+});
+
+describe('detalle técnico de una actualización que falló', () => {
+  it('junta el tipo de error y el mensaje del celular', () => {
+    expect(describeUpdateError({ code: 'UnknownHostException', message: 'Unable to resolve host "github.com": No address associated with hostname' })).toBe(
+      'UnknownHostException: Unable to resolve host "github.com": No address associated with hostname',
+    );
+    expect(describeUpdateError({ code: 'SSLHandshakeException', message: 'SSLHandshakeException: Trust anchor for certification path not found.' })).toBe(
+      'SSLHandshakeException: Trust anchor for certification path not found.',
+    );
+  });
+
+  it('quita las direcciones, que son largas', () => {
+    expect(describeUpdateError(new Error('Failed to download from: https://github.com/alejo452/Danzi/releases/download/android-31/danzi-web.zip'))).toBe(
+      'Failed to download from: …',
+    );
+  });
+
+  it('acepta cualquier cosa y no pasa de 160 caracteres', () => {
+    expect(describeUpdateError(undefined)).toBe('error desconocido');
+    expect(describeUpdateError('sin red')).toBe('sin red');
+    expect(describeUpdateError({ message: 'x'.repeat(300) })).toHaveLength(160);
   });
 });
